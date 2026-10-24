@@ -1,0 +1,368 @@
+import React from 'react';
+import { ClusterNode } from '../../types/game';
+import { useAppStore, dispatch } from '../../store/gameStore';
+import {
+  NODE_TEMPLATES,
+  formatCurrency,
+  formatRps,
+  formatGb,
+  formatPercent,
+  CPU_TIER_CONFIG,
+  RAM_TIER_CONFIG,
+  MAX_HARDWARE_TIER,
+  getCpuUpgradeCost,
+  getRamUpgradeCost,
+} from '../../constants/gameConfig';
+import { audio } from '../../audio/proceduralAudio';
+import {
+  ArrowUpCircle,
+  PlusCircle,
+  ShieldCheck,
+  ShieldAlert,
+  Trash2,
+  Activity,
+  Cpu,
+  Layers,
+  HardDrive,
+  Clock,
+  Sparkles,
+} from 'lucide-react';
+
+interface NodeInspectorProps {
+  node: ClusterNode;
+}
+
+export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
+  const cashUsd = useAppStore((s) => s.sim.economy.cashUsd);
+  const tmpl = NODE_TEMPLATES[node.kind];
+
+  const cpuTier = node.cpuTier ?? 0;
+  const ramTier = node.ramTier ?? 0;
+  const cpuConfig = CPU_TIER_CONFIG[cpuTier] || CPU_TIER_CONFIG[0];
+  const ramConfig = RAM_TIER_CONFIG[ramTier] || RAM_TIER_CONFIG[0];
+
+  const cpuCost = getCpuUpgradeCost(node);
+  const ramCost = getRamUpgradeCost(node);
+
+  const canUpgradeCpu = cpuCost > 0 && cashUsd >= cpuCost && cpuTier < MAX_HARDWARE_TIER;
+  const canUpgradeRam = ramCost > 0 && cashUsd >= ramCost && ramTier < MAX_HARDWARE_TIER;
+  const canAddBehind = node.kind === 'loadbalancer' || node.kind === 'server';
+
+  const cpuRatio = Math.max(0, Math.min(1, node.cpuUtilization));
+  const ramRatio = node.ramGb > 0 ? Math.max(0, Math.min(1, node.ramUsedGb / node.ramGb)) : 0;
+  const storageRatio = node.storageGb > 0 ? Math.max(0, Math.min(1, node.storageUsedGb / node.storageGb)) : 0;
+  const throughputRatio = node.capacityRps > 0 ? Math.max(0, Math.min(1, node.currentRps / node.capacityRps)) : 0;
+
+  const handleUpgradeCpu = () => {
+    dispatch({ type: 'upgradeCpu', nodeId: node.id });
+  };
+
+  const handleUpgradeRam = () => {
+    dispatch({ type: 'upgradeRam', nodeId: node.id });
+  };
+
+  const handleAddServerBehind = () => {
+    audio.playClick();
+    dispatch({ type: 'addServerBehind', nodeId: node.id });
+  };
+
+  const handleToggleShield = () => {
+    dispatch({ type: 'toggleShield', nodeId: node.id });
+  };
+
+  const handleDelete = () => {
+    dispatch({ type: 'deleteNode', nodeId: node.id });
+  };
+
+  return (
+    <div className="ct-inspector">
+      <div className="ct-inspector__head">
+        <div>
+          <span className="ct-inspector__kind" style={{ color: tmpl.accentVar }}>
+            {tmpl.label}
+          </span>
+          <h3 className="ct-inspector__title">{node.name}</h3>
+        </div>
+        <span className={`ct-node-row__status ct-status--${node.status}`}>
+          {node.status.toUpperCase()}
+        </span>
+      </div>
+
+      <p className="ct-inspector__desc">{tmpl.description}</p>
+
+      {/* Real-time Telemetry Metrics */}
+      <div className="ct-inspector__metrics">
+        {/* CPU */}
+        {node.kind !== 'entry' && node.kind !== 'storage' && (
+          <div className="ct-metric">
+            <div className="ct-metric__head">
+              <span className="ct-metric__name">
+                <Cpu size={12} className="inline mr-1" />
+                CPU ({node.cpuCores} Cores)
+              </span>
+              <span className="ct-metric__value">{formatPercent(node.cpuUtilization)}</span>
+            </div>
+            <div className="ct-meter" role="meter" aria-label="CPU Utilization">
+              <span
+                className="ct-meter__fill"
+                style={{
+                  width: `${cpuRatio * 100}%`,
+                  background:
+                    cpuRatio >= 0.92
+                      ? 'var(--ct-load-crit)'
+                      : cpuRatio >= 0.75
+                      ? 'var(--ct-load-warn)'
+                      : 'var(--ct-load-ok)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* RAM */}
+        {node.ramGb > 0 && (
+          <div className="ct-metric">
+            <div className="ct-metric__head">
+              <span className="ct-metric__name">
+                <Layers size={12} className="inline mr-1" />
+                Memory ({formatGb(node.ramGb)})
+              </span>
+              <span className="ct-metric__value">
+                {formatGb(node.ramUsedGb)} ({formatPercent(ramRatio)})
+              </span>
+            </div>
+            <div className="ct-meter" role="meter" aria-label="Memory Utilization">
+              <span
+                className="ct-meter__fill"
+                style={{
+                  width: `${ramRatio * 100}%`,
+                  background:
+                    ramRatio >= 0.9
+                      ? 'var(--ct-load-crit)'
+                      : ramRatio >= 0.75
+                      ? 'var(--ct-load-warn)'
+                      : 'var(--ct-load-ok)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Storage */}
+        {node.storageGb > 0 && (
+          <div className="ct-metric">
+            <div className="ct-metric__head">
+              <span className="ct-metric__name">
+                <HardDrive size={12} className="inline mr-1" />
+                Storage ({formatGb(node.storageGb)})
+              </span>
+              <span className="ct-metric__value">
+                {formatGb(node.storageUsedGb)} ({formatPercent(storageRatio)})
+              </span>
+            </div>
+            <div className="ct-meter" role="meter" aria-label="Storage Usage">
+              <span
+                className="ct-meter__fill"
+                style={{
+                  width: `${storageRatio * 100}%`,
+                  background:
+                    storageRatio >= 0.9
+                      ? 'var(--ct-load-crit)'
+                      : storageRatio >= 0.75
+                      ? 'var(--ct-load-warn)'
+                      : 'var(--ct-load-ok)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Throughput */}
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">
+              <Activity size={12} className="inline mr-1" />
+              Throughput
+            </span>
+            <span className="ct-metric__value">
+              {formatRps(node.currentRps)}{' '}
+              {node.capacityRps > 0 && `/ max ${formatRps(node.capacityRps)}`}
+            </span>
+          </div>
+          {node.capacityRps > 0 && (
+            <div className="ct-meter" role="meter" aria-label="Capacity Usage">
+              <span
+                className="ct-meter__fill"
+                style={{
+                  width: `${throughputRatio * 100}%`,
+                  background:
+                    throughputRatio >= 0.9
+                      ? 'var(--ct-load-crit)'
+                      : throughputRatio >= 0.75
+                      ? 'var(--ct-load-warn)'
+                      : 'var(--ct-load-ok)',
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Latency */}
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">
+              <Clock size={12} className="inline mr-1" />
+              Latency
+            </span>
+            <span className="ct-metric__value">
+              {Number.isFinite(node.latencyMs) ? `${node.latencyMs.toFixed(1)} ms` : '∞ (TIMEOUT)'}
+            </span>
+          </div>
+        </div>
+
+        {/* Meltdown Countdown Warning */}
+        {node.meltdownSeconds > 0 && (
+          <div className="ct-alert ct-alert--danger">
+            <strong>THERMAL MELTDOWN ACTIVE!</strong>
+            <p>CPU cores overheating. Auto-cooling recovers in {node.meltdownSeconds.toFixed(1)}s.</p>
+          </div>
+        )}
+
+        {/* Hardware Repair Countdown */}
+        {node.repairSeconds > 0 && (
+          <div className="ct-alert ct-alert--warning">
+            <strong>HARDWARE MAINTENANCE</strong>
+            <p>Field technician repairing unit. Restoring online in {node.repairSeconds.toFixed(1)}s.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Hardware Component Upgrade Bay */}
+      {tmpl.maxUpgrades > 0 && (
+        <div className="ct-upgrade-bay">
+          <div className="ct-upgrade-bay__header">
+            <span className="ct-upgrade-bay__tag">HARDWARE UPGRADE BAY</span>
+            <span className="ct-upgrade-bay__tier-dots">
+              {Array.from({ length: MAX_HARDWARE_TIER }, (_, i) => (
+                <span
+                  key={i}
+                  className={`ct-tier-dot ${i < Math.max(cpuTier, ramTier) ? 'ct-tier-dot--active' : ''}`}
+                />
+              ))}
+            </span>
+          </div>
+
+          {/* CPU Hardware Upgrade Card */}
+          <div className="ct-upgrade-card">
+            <div className="ct-upgrade-card__info">
+              <div className="flex items-center justify-between">
+                <span className="ct-upgrade-card__title">
+                  <Cpu size={14} className="inline mr-1.5 text-cyan-400" />
+                  CPU Processor
+                </span>
+                <span className="ct-badge ct-badge--cpu" style={{ color: cpuConfig.color }}>
+                  {cpuConfig.badge}
+                </span>
+              </div>
+              <p className="ct-upgrade-card__model">{cpuConfig.name}</p>
+              <div className="ct-upgrade-card__benefit">
+                {cpuTier < MAX_HARDWARE_TIER
+                  ? `Next Tier: +4 Cores, +35% RPS Capacity`
+                  : `Quantum Silicon Maxed (${node.cpuCores} Cores)`}
+              </div>
+            </div>
+
+            {cpuTier < MAX_HARDWARE_TIER ? (
+              <button
+                type="button"
+                className="ct-btn ct-btn--primary ct-btn--block"
+                disabled={!canUpgradeCpu}
+                onClick={handleUpgradeCpu}
+                title={cashUsd < cpuCost ? 'Insufficient funds' : 'Replace outdated processor'}
+              >
+                <ArrowUpCircle size={15} />
+                <span>Replace CPU ({formatCurrency(cpuCost)})</span>
+              </button>
+            ) : (
+              <div className="ct-upgrade-card__max">MAX SILICON LEVEL REACHED</div>
+            )}
+          </div>
+
+          {/* RAM Memory Expansion Card */}
+          {node.ramGb > 0 && (
+            <div className="ct-upgrade-card">
+              <div className="ct-upgrade-card__info">
+                <div className="flex items-center justify-between">
+                  <span className="ct-upgrade-card__title">
+                    <Layers size={14} className="inline mr-1.5 text-green-400" />
+                    Memory Bank
+                  </span>
+                  <span className="ct-badge ct-badge--ram" style={{ color: ramConfig.color }}>
+                    {ramConfig.slots}x SLOTS
+                  </span>
+                </div>
+                <p className="ct-upgrade-card__model">{ramConfig.name} ({formatGb(node.ramGb)})</p>
+                <div className="ct-upgrade-card__benefit">
+                  {ramTier < MAX_HARDWARE_TIER
+                    ? `Next Expansion: +${formatGb(node.ramGb)} RAM (Doubles capacity)`
+                    : `ECC Enterprise Maxed (${formatGb(node.ramGb)})`}
+                </div>
+              </div>
+
+              {ramTier < MAX_HARDWARE_TIER ? (
+                <button
+                  type="button"
+                  className="ct-btn ct-btn--primary ct-btn--block"
+                  disabled={!canUpgradeRam}
+                  onClick={handleUpgradeRam}
+                  title={cashUsd < ramCost ? 'Insufficient funds' : 'Expand physical RAM modules'}
+                >
+                  <ArrowUpCircle size={15} />
+                  <span>Expand RAM ({formatCurrency(ramCost)})</span>
+                </button>
+              ) : (
+                <div className="ct-upgrade-card__max">MAX MEMORY LEVEL REACHED</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action Controls */}
+      <div className="ct-inspector__actions">
+        {canAddBehind && (
+          <button
+            type="button"
+            className="ct-btn ct-btn--block"
+            onClick={handleAddServerBehind}
+          >
+            <PlusCircle size={15} />
+            <span>Add Server Behind (${NODE_TEMPLATES.server.costUsd})</span>
+          </button>
+        )}
+
+        {node.kind === 'entry' && (
+          <button
+            type="button"
+            className={`ct-btn ct-btn--block ${node.shielded ? 'ct-btn--shield-on' : ''}`}
+            onClick={handleToggleShield}
+          >
+            {node.shielded ? <ShieldCheck size={15} /> : <ShieldAlert size={15} />}
+            <span>DDoS Shield: {node.shielded ? 'ENABLED' : 'DISABLED'}</span>
+          </button>
+        )}
+
+        {node.kind !== 'entry' && (
+          <button
+            type="button"
+            className="ct-btn ct-btn--danger ct-btn--block"
+            onClick={handleDelete}
+          >
+            <Trash2 size={15} />
+            <span>Decommission Node</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,202 @@
+import React from 'react';
+import { useAppStore, dispatch } from '../../store/gameStore';
+import { NodeInspector } from './NodeInspector';
+import {
+  formatRps,
+  formatCurrency,
+  formatSecondsTime,
+  NODE_TEMPLATES,
+} from '../../constants/gameConfig';
+import { audio } from '../../audio/proceduralAudio';
+import {
+  Activity,
+  DollarSign,
+  AlertTriangle,
+  Server,
+  XCircle,
+} from 'lucide-react';
+
+export const SideRail: React.FC = () => {
+  const sim = useAppStore((s) => s.sim);
+
+  const selectedNode = sim.selectedNodeId ? sim.nodes[sim.selectedNodeId] ?? null : null;
+  const nodesList = sim.nodeOrder.map((id) => sim.nodes[id]).filter((n) => !!n);
+  const activeIncidents = sim.incidentOrder
+    .map((id) => sim.incidents[id])
+    .filter((inc) => inc && !inc.acknowledged);
+
+  const netProfit = sim.economy.totalRevenueUsd - sim.economy.totalSpendUsd;
+
+  const handleSelectNode = (id: string) => {
+    if (sim.selectedNodeId === id) {
+      dispatch({ type: 'selectNode', nodeId: null });
+    } else {
+      audio.playSelect();
+      dispatch({ type: 'selectNode', nodeId: id });
+    }
+  };
+
+  const handleDismissIncident = (id: string) => {
+    dispatch({ type: 'dismissIncident', incidentId: id });
+  };
+
+  return (
+    <aside className="ct-game__rail" aria-label="System telemetry and node inventory">
+      {/* Throughput Telemetry */}
+      <section className="ct-rail__section">
+        <h2 className="ct-rail__title">
+          <Activity size={13} className="inline mr-1" />
+          Traffic & Throughput
+        </h2>
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">Inbound Demand</span>
+            <span className="ct-metric__value">{formatRps(sim.inboundRps)}</span>
+          </div>
+        </div>
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name" style={{ color: 'var(--ct-green)' }}>
+              Served Successfully
+            </span>
+            <span className="ct-metric__value" style={{ color: 'var(--ct-green)' }}>
+              {formatRps(sim.servedRps)}
+            </span>
+          </div>
+        </div>
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span
+              className="ct-metric__name"
+              style={{ color: sim.droppedRps > 0 ? 'var(--ct-red)' : 'var(--ct-text-muted)' }}
+            >
+              Dropped Requests
+            </span>
+            <span
+              className="ct-metric__value"
+              style={{ color: sim.droppedRps > 0 ? 'var(--ct-red)' : 'var(--ct-text-muted)' }}
+            >
+              {formatRps(sim.droppedRps)}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Empire Financials */}
+      <section className="ct-rail__section">
+        <h2 className="ct-rail__title">
+          <DollarSign size={13} className="inline mr-1" />
+          Financial Health
+        </h2>
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">Lifetime Revenue</span>
+            <span className="ct-metric__value">{formatCurrency(sim.economy.totalRevenueUsd)}</span>
+          </div>
+        </div>
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">Infrastructure Spend</span>
+            <span className="ct-metric__value">{formatCurrency(sim.economy.totalSpendUsd)}</span>
+          </div>
+        </div>
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">Net Operating Margin</span>
+            <span
+              className="ct-metric__value"
+              style={{ color: netProfit >= 0 ? 'var(--ct-green)' : 'var(--ct-red)' }}
+            >
+              {formatCurrency(netProfit)}
+            </span>
+          </div>
+        </div>
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">Next Cloud Invoice</span>
+            <span className="ct-metric__value ct-text--gold">
+              {formatSecondsTime(sim.economy.secondsToBill)}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Active Incidents Banner */}
+      {activeIncidents.length > 0 && (
+        <section className="ct-rail__section ct-rail__section--incidents" aria-label="Active incidents">
+          <h2 className="ct-rail__title ct-text--red">
+            <AlertTriangle size={13} className="inline mr-1" />
+            Active Incidents ({activeIncidents.length})
+          </h2>
+          <div className="ct-incidents-list">
+            {activeIncidents.map((inc) => (
+              <div key={inc.id} className="ct-incident-card" data-severity={inc.severity}>
+                <div className="ct-incident-card__head">
+                  <span className="ct-incident-card__badge">{inc.severity.toUpperCase()}</span>
+                  <span className="ct-incident-card__time">
+                    {formatSecondsTime(inc.secondsRemaining)}
+                  </span>
+                </div>
+                <strong className="ct-incident-card__title">{inc.title}</strong>
+                <p className="ct-incident-card__detail">{inc.detail}</p>
+                <button
+                  type="button"
+                  className="ct-btn ct-btn--ghost ct-btn--sm"
+                  onClick={() => handleDismissIncident(inc.id)}
+                >
+                  <XCircle size={12} />
+                  <span>Acknowledge</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Selected Node Inspector */}
+      {selectedNode ? (
+        <section className="ct-rail__section" aria-label={`Inspector for ${selectedNode.name}`}>
+          <NodeInspector node={selectedNode} />
+        </section>
+      ) : (
+        /* Cluster Node Inventory List */
+        <section className="ct-rail__section">
+          <h2 className="ct-rail__title">
+            <Server size={13} className="inline mr-1" />
+            Cluster Nodes ({nodesList.length})
+          </h2>
+          {nodesList.length === 0 ? (
+            <p className="ct-empty">
+              No nodes deployed. Select a tool from the top toolbar to deploy server infrastructure.
+            </p>
+          ) : (
+            <ul className="ct-node-list">
+              {nodesList.map((node) => {
+                const tmpl = NODE_TEMPLATES[node.kind];
+                const isSelected = node.id === sim.selectedNodeId;
+                return (
+                  <li key={node.id}>
+                    <button
+                      type="button"
+                      className="ct-node-row"
+                      aria-current={isSelected}
+                      onClick={() => handleSelectNode(node.id)}
+                    >
+                      <span className="ct-node-row__glyph" style={{ color: tmpl.accentVar }}>
+                        {tmpl.glyph}
+                      </span>
+                      <span className="ct-node-row__name">{node.name}</span>
+                      <span className={`ct-node-row__status ct-status--${node.status}`}>
+                        {node.status.toUpperCase()}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+    </aside>
+  );
+};

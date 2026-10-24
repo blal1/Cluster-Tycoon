@@ -1,0 +1,6 @@
+{
+  "name": "Cluster Tycoon",
+  "description": "Offline backend infrastructure and system administration simulation game with procedural audio, interactive cluster topology, and realistic cloud billing cycles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

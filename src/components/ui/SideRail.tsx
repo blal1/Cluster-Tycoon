@@ -6,6 +6,7 @@ import {
   formatCurrency,
   formatSecondsTime,
   NODE_TEMPLATES,
+  STATUS_NON_COLOR_LABELS,
 } from '../../constants/gameConfig';
 import { audio } from '../../audio/proceduralAudio';
 import {
@@ -174,6 +175,10 @@ export const SideRail: React.FC = () => {
               {nodesList.map((node) => {
                 const tmpl = NODE_TEMPLATES[node.kind];
                 const isSelected = node.id === sim.selectedNodeId;
+                const statusMeta = STATUS_NON_COLOR_LABELS[node.status] || {
+                  label: node.status.toUpperCase(),
+                  glyph: '•',
+                };
                 return (
                   <li key={node.id}>
                     <button
@@ -181,13 +186,14 @@ export const SideRail: React.FC = () => {
                       className="ct-node-row"
                       aria-current={isSelected}
                       onClick={() => handleSelectNode(node.id)}
+                      aria-label={`${node.name}, ${tmpl.label}, ${statusMeta.glyph} ${statusMeta.label}`}
                     >
                       <span className="ct-node-row__glyph" style={{ color: tmpl.accentVar }}>
                         {tmpl.glyph}
                       </span>
                       <span className="ct-node-row__name">{node.name}</span>
                       <span className={`ct-node-row__status ct-status--${node.status}`}>
-                        {node.status.toUpperCase()}
+                        {statusMeta.glyph} {statusMeta.label}
                       </span>
                     </button>
                   </li>

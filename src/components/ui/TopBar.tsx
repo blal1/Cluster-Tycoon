@@ -19,6 +19,7 @@ import {
   Save,
   Menu,
   Keyboard,
+  Activity,
 } from 'lucide-react';
 
 interface ToolItem {
@@ -40,10 +41,12 @@ const TOOLS: ToolItem[] = [
 
 interface TopBarProps {
   onOpenShortcuts?: () => void;
+  onOpenMatrix?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ onOpenShortcuts }) => {
+export const TopBar: React.FC<TopBarProps> = ({ onOpenShortcuts, onOpenMatrix }) => {
   const sim = useAppStore((s) => s.sim);
+  const settings = useAppStore((s) => s.settings);
 
   const earningsPerSec =
     sim.servedRps * sim.economy.revenuePerRpsUsd -
@@ -152,6 +155,22 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenShortcuts }) => {
 
       {/* Session Management */}
       <div className="ct-game__tools" role="group" aria-label="Navigation and system options">
+        {onOpenMatrix && (
+          <button
+            type="button"
+            className="ct-tool"
+            onClick={() => {
+              audio.playClick();
+              onOpenMatrix();
+            }}
+            title="Accessible Cluster Matrix (Alt + A)"
+            aria-label="Accessible Cluster Matrix (Alt + A)"
+          >
+            <Activity size={14} className="text-cyan-400" />
+            <span>A11y Matrix</span>
+          </button>
+        )}
+
         {onOpenShortcuts && (
           <button
             type="button"

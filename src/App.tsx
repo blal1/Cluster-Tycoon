@@ -7,6 +7,9 @@ import { SideRail } from './components/ui/SideRail';
 import { InvoiceModal } from './components/ui/InvoiceModal';
 import { CommandPalette } from './components/ui/CommandPalette';
 import { ShortcutOverlay } from './components/ui/ShortcutOverlay';
+import { ClusterMatrixModal } from './components/ui/ClusterMatrixModal';
+import { LiveAnnouncer } from './components/ui/LiveAnnouncer';
+import { StatusBar } from './components/ui/StatusBar';
 import { MainMenu } from './components/screens/MainMenu';
 import { SystemManual } from './components/screens/SystemManual';
 import { SettingsScreen } from './components/screens/SettingsScreen';
@@ -19,6 +22,7 @@ export default function App() {
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [matrixOpen, setMatrixOpen] = useState(false);
 
   // Hook simulation tick loop
   useSimulationRunner();
@@ -57,6 +61,29 @@ export default function App() {
     }
   }, [screen, sim.economy.pendingBill, sim.speed]);
 
+  // Tactile audio feedback on interactive element hover
+  useEffect(() => {
+    let lastHovered: Element | null = null;
+    const handleMouseOver = (e: MouseEvent) => {
+      const btn = (e.target as Element | null)?.closest('button, [role="button"], a');
+      if (btn && btn !== lastHovered) {
+        lastHovered = btn;
+        audio.playHover();
+      }
+    };
+    document.addEventListener('mouseover', handleMouseOver);
+    return () => document.removeEventListener('mouseover', handleMouseOver);
+  }, []);
+
+  // Periodic autosave while playing
+  useEffect(() => {
+    if (screen !== 'playing') return;
+    const interval = window.setInterval(() => {
+      saveCluster();
+    }, 20000);
+    return () => window.clearInterval(interval);
+  }, [screen]);
+
   // Global hotkeys (Shift + ?, Space, P, S, 1, 2, 4, etc.)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -74,6 +101,13 @@ export default function App() {
       if ((e.key === '?' || (e.shiftKey && (e.key === '/' || e.code === 'Slash'))) && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      // Alt + A toggles Accessible Cluster Matrix anywhere
+      if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        setMatrixOpen((prev) => !prev);
         return;
       }
 
@@ -143,9 +177,18 @@ export default function App() {
   }, [screen, sim.selectedNodeId]);
 
   return (
-    <div className="ct-app">
-      {/* Optional CRT Phosphor Scanline Overlay */}
-      {settings.crtScanlines && <div className="ct-crt-overlay ct-deco" aria-hidden="true" />}
+    <div
+      className={`ct-app ${settings.highContrast ? 'ct-high-contrast' : ''} ${
+        settings.largeText ? 'ct-large-text' : ''
+      }`}
+    >
+      {/* Screen Reader and Spoken Telemetry Announcer */}
+      <LiveAnnouncer />
+
+      {/* Optional CRT Phosphor Scanline Overlay (disabled in high-contrast mode for maximal clarity) */}
+      {settings.crtScanlines && !settings.highContrast && (
+        <div className="ct-crt-overlay ct-deco" aria-hidden="true" />
+      )}
 
       {/* Primary Stage */}
       <div className="ct-stage">
@@ -156,11 +199,18 @@ export default function App() {
 
         {screen === 'playing' && (
           <div className="ct-game">
-            <TopBar onOpenShortcuts={() => setShortcutsOpen(true)} />
+            <TopBar
+              onOpenShortcuts={() => setShortcutsOpen(true)}
+              onOpenMatrix={() => setMatrixOpen(true)}
+            />
             <div className="ct-game__canvas">
               <ClusterCanvas />
             </div>
             <SideRail />
+            <StatusBar
+              onOpenShortcuts={() => setShortcutsOpen(true)}
+              onOpenMatrix={() => setMatrixOpen(true)}
+            />
 
             {/* AWS Monthly Bill Modal */}
             {sim.economy.pendingBill && (
@@ -174,6 +224,12 @@ export default function App() {
             <CommandPalette
               open={paletteOpen}
               onClose={() => setPaletteOpen(false)}
+            />
+
+            {/* Screen Reader & Keyboard Accessible Cluster Matrix Modal (Alt + A) */}
+            <ClusterMatrixModal
+              open={matrixOpen}
+              onClose={() => setMatrixOpen(false)}
             />
           </div>
         )}

@@ -18,6 +18,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     icon: <Command size={14} className="text-cyan-400" />,
     shortcuts: [
       { keys: ['?'], description: 'Toggle this Sysadmin Hotkey Overlay' },
+      { keys: ['Alt', 'A'], description: 'Open Accessible Cluster Matrix (Screen Reader & Keyboard Console)' },
       { keys: ['Space', '/'], description: 'Open Fuzzy Command Palette' },
       { keys: ['Esc'], description: 'Close modal / cancel tool / deselect node' },
       { keys: ['S'], description: 'Quick-save cluster state to local storage' },

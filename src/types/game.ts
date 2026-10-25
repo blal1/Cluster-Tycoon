@@ -155,6 +155,10 @@ export interface GameSettings {
   vibrationEnabled: boolean;
   crtScanlines: boolean;
   highContrast: boolean;
+  largeText: boolean;
+  screenReaderAnnouncements: boolean;
+  speechSynthesisEnabled: boolean;
+  soundBeaconOnSelect: boolean;
 }
 
 export interface AppState {
@@ -182,6 +186,9 @@ export type GameAction =
   | { type: 'scaleVertical'; nodeId: string }
   | { type: 'upgradeCpu'; nodeId: string }
   | { type: 'upgradeRam'; nodeId: string }
+  | { type: 'upgradeStorage'; nodeId: string }
+  | { type: 'toggleSharding'; nodeId: string }
+  | { type: 'addReplication'; nodeId: string }
   | { type: 'addServerBehind'; nodeId: string }
   | { type: 'toggleShield'; nodeId: string }
   | { type: 'toggleAutoReboot'; nodeId: string }

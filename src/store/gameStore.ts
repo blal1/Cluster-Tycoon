@@ -16,6 +16,9 @@ import {
   BILLING_CYCLE_SECONDS,
   getCpuUpgradeCost,
   getRamUpgradeCost,
+  getStorageUpgradeCost,
+  getReplicationCost,
+  getShardingCost,
   MAX_HARDWARE_TIER,
 } from '../constants/gameConfig';
 import {
@@ -191,7 +194,11 @@ function reduce(state: AppState, action: GameAction): AppState {
         revision: state.revision + 1,
       };
 
-    case 'selectNode':
+    case 'selectNode': {
+      if (action.nodeId && state.sim.nodes[action.nodeId]) {
+        const targetNode = state.sim.nodes[action.nodeId];
+        audio.playNodeBeacon(targetNode.status);
+      }
       return {
         ...state,
         sim: {
@@ -200,6 +207,7 @@ function reduce(state: AppState, action: GameAction): AppState {
         },
         revision: state.revision + 1,
       };
+    }
 
     case 'placeNode': {
       const tmpl = NODE_TEMPLATES[action.kind];
@@ -462,6 +470,116 @@ function reduce(state: AppState, action: GameAction): AppState {
             ...state.sim.economy,
             cashUsd: state.sim.economy.cashUsd - tmpl.upgradeCostUsd,
             totalSpendUsd: state.sim.economy.totalSpendUsd + tmpl.upgradeCostUsd,
+          },
+        },
+        revision: state.revision + 1,
+      };
+    }
+
+    case 'upgradeStorage': {
+      const node = state.sim.nodes[action.nodeId];
+      if (!node) return state;
+      const cost = getStorageUpgradeCost(node);
+      if (cost <= 0) return state;
+
+      if (state.sim.economy.cashUsd < cost) {
+        audio.playDenied();
+        audio.triggerVibrate([20, 60, 20]);
+        return state;
+      }
+
+      const upgradedNode: ClusterNode = {
+        ...node,
+        storageGb: node.storageGb * 2,
+      };
+
+      audio.playPaySuccess();
+      audio.triggerVibrate(30);
+
+      return {
+        ...state,
+        sim: {
+          ...state.sim,
+          nodes: {
+            ...state.sim.nodes,
+            [action.nodeId]: upgradedNode,
+          },
+          economy: {
+            ...state.sim.economy,
+            cashUsd: state.sim.economy.cashUsd - cost,
+            totalSpendUsd: state.sim.economy.totalSpendUsd + cost,
+          },
+        },
+        revision: state.revision + 1,
+      };
+    }
+
+    case 'toggleSharding': {
+      const node = state.sim.nodes[action.nodeId];
+      if (!node || node.sharding) return state;
+      const cost = getShardingCost(node);
+
+      if (state.sim.economy.cashUsd < cost) {
+        audio.playDenied();
+        audio.triggerVibrate([20, 60, 20]);
+        return state;
+      }
+
+      audio.playPaySuccess();
+      audio.triggerVibrate(30);
+
+      return {
+        ...state,
+        sim: {
+          ...state.sim,
+          nodes: {
+            ...state.sim.nodes,
+            [action.nodeId]: {
+              ...node,
+              sharding: true,
+            },
+          },
+          economy: {
+            ...state.sim.economy,
+            cashUsd: state.sim.economy.cashUsd - cost,
+            totalSpendUsd: state.sim.economy.totalSpendUsd + cost,
+          },
+        },
+        revision: state.revision + 1,
+      };
+    }
+
+    case 'addReplication': {
+      const node = state.sim.nodes[action.nodeId];
+      if (!node) return state;
+      const cost = getReplicationCost(node);
+      if (cost <= 0) return state;
+
+      if (state.sim.economy.cashUsd < cost) {
+        audio.playDenied();
+        audio.triggerVibrate([20, 60, 20]);
+        return state;
+      }
+
+      audio.playPaySuccess();
+      audio.triggerVibrate(30);
+
+      return {
+        ...state,
+        sim: {
+          ...state.sim,
+          nodes: {
+            ...state.sim.nodes,
+            [action.nodeId]: {
+              ...node,
+              replication: node.replication + 1,
+              capacityRps: Math.round(node.capacityRps * 1.4),
+            },
+          },
+          economy: {
+            ...state.sim.economy,
+            cashUsd: state.sim.economy.cashUsd - cost,
+            totalSpendUsd: state.sim.economy.totalSpendUsd + cost,
           },
         },
         revision: state.revision + 1,

@@ -12,6 +12,9 @@ import {
   MAX_HARDWARE_TIER,
   getCpuUpgradeCost,
   getRamUpgradeCost,
+  getStorageUpgradeCost,
+  getReplicationCost,
+  getShardingCost,
 } from '../../constants/gameConfig';
 import { audio } from '../../audio/proceduralAudio';
 import {
@@ -24,6 +27,7 @@ import {
   Cpu,
   Layers,
   HardDrive,
+  Database,
   Clock,
   Sparkles,
 } from 'lucide-react';
@@ -43,9 +47,15 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
 
   const cpuCost = getCpuUpgradeCost(node);
   const ramCost = getRamUpgradeCost(node);
+  const storageCost = getStorageUpgradeCost(node);
+  const replicationCost = getReplicationCost(node);
+  const shardingCost = getShardingCost(node);
 
   const canUpgradeCpu = cpuCost > 0 && cashUsd >= cpuCost && cpuTier < MAX_HARDWARE_TIER;
   const canUpgradeRam = ramCost > 0 && cashUsd >= ramCost && ramTier < MAX_HARDWARE_TIER;
+  const canUpgradeStorage = storageCost > 0 && cashUsd >= storageCost;
+  const canAddReplica = replicationCost > 0 && cashUsd >= replicationCost && node.replication < 5;
+  const canEnableSharding = shardingCost > 0 && cashUsd >= shardingCost && !node.sharding;
   const canAddBehind = node.kind === 'loadbalancer' || node.kind === 'server';
 
   const cpuRatio = Math.max(0, Math.min(1, node.cpuUtilization));
@@ -59,6 +69,18 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
 
   const handleUpgradeRam = () => {
     dispatch({ type: 'upgradeRam', nodeId: node.id });
+  };
+
+  const handleUpgradeStorage = () => {
+    dispatch({ type: 'upgradeStorage', nodeId: node.id });
+  };
+
+  const handleAddReplica = () => {
+    dispatch({ type: 'addReplication', nodeId: node.id });
+  };
+
+  const handleToggleSharding = () => {
+    dispatch({ type: 'toggleSharding', nodeId: node.id });
   };
 
   const handleAddServerBehind = () => {
@@ -323,6 +345,108 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
               ) : (
                 <div className="ct-upgrade-card__max">MAX MEMORY LEVEL REACHED</div>
               )}
+            </div>
+          )}
+
+          {/* Storage Quota Expansion Card (S3 & DB) */}
+          {node.storageGb > 0 && (
+            <div className="ct-upgrade-card">
+              <div className="ct-upgrade-card__info">
+                <div className="flex items-center justify-between">
+                  <span className="ct-upgrade-card__title">
+                    <HardDrive size={14} className="inline mr-1.5 text-purple-400" />
+                    Storage Volume Quota
+                  </span>
+                  <span className="ct-badge" style={{ color: 'var(--ct-violet)' }}>
+                    {formatGb(node.storageGb)}
+                  </span>
+                </div>
+                <p className="ct-upgrade-card__model">Persistent Block & Object Storage</p>
+                <div className="ct-upgrade-card__benefit">
+                  Next Expansion: +{formatGb(node.storageGb)} (Doubles quota to prevent threshold warnings)
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="ct-btn ct-btn--primary ct-btn--block"
+                disabled={!canUpgradeStorage}
+                onClick={handleUpgradeStorage}
+                title={cashUsd < storageCost ? 'Insufficient funds' : 'Expand storage capacity'}
+              >
+                <ArrowUpCircle size={15} />
+                <span>Expand Quota ({formatCurrency(storageCost)})</span>
+              </button>
+            </div>
+          )}
+
+          {/* Database Specific: Read Replication */}
+          {node.kind === 'database' && (
+            <div className="ct-upgrade-card">
+              <div className="ct-upgrade-card__info">
+                <div className="flex items-center justify-between">
+                  <span className="ct-upgrade-card__title">
+                    <Database size={14} className="inline mr-1.5 text-amber-400" />
+                    Read Replicas
+                  </span>
+                  <span className="ct-badge" style={{ color: 'var(--ct-amber)' }}>
+                    {node.replication}x NODES
+                  </span>
+                </div>
+                <p className="ct-upgrade-card__model">Asynchronous Read-Only Standby</p>
+                <div className="ct-upgrade-card__benefit">
+                  {node.replication < 5
+                    ? `Add Replica: +40% Query Capacity & Redundancy`
+                    : `Maximum Cluster Replication Reached`}
+                </div>
+              </div>
+
+              {node.replication < 5 ? (
+                <button
+                  type="button"
+                  className="ct-btn ct-btn--block"
+                  disabled={!canAddReplica}
+                  onClick={handleAddReplica}
+                  title={cashUsd < replicationCost ? 'Insufficient funds' : 'Add read replica instance'}
+                >
+                  <PlusCircle size={15} />
+                  <span>Provision Replica ({formatCurrency(replicationCost)})</span>
+                </button>
+              ) : (
+                <div className="ct-upgrade-card__max">MAX REPLICAS ATTAINED</div>
+              )}
+            </div>
+          )}
+
+          {/* Database Specific: Horizontal Sharding */}
+          {node.kind === 'database' && !node.sharding && (
+            <div className="ct-upgrade-card">
+              <div className="ct-upgrade-card__info">
+                <div className="flex items-center justify-between">
+                  <span className="ct-upgrade-card__title">
+                    <Sparkles size={14} className="inline mr-1.5 text-cyan-400" />
+                    Horizontal Sharding
+                  </span>
+                  <span className="ct-badge" style={{ color: 'var(--ct-cyan)' }}>
+                    UNSHARDED
+                  </span>
+                </div>
+                <p className="ct-upgrade-card__model">Distributed Partitioning Architecture</p>
+                <div className="ct-upgrade-card__benefit">
+                  Partitions write transactions to eliminate disk write bottlenecks.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="ct-btn ct-btn--block"
+                disabled={!canEnableSharding}
+                onClick={handleToggleSharding}
+                title={cashUsd < shardingCost ? 'Insufficient funds' : 'Enable distributed database sharding'}
+              >
+                <Sparkles size={15} />
+                <span>Enable Sharding ({formatCurrency(shardingCost)})</span>
+              </button>
             </div>
           )}
         </div>

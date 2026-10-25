@@ -78,6 +78,7 @@
   --ct-r-lg: 14px;
   --ct-r-full: 999px;
   --ct-topbar-h: 56px;
+  --ct-statusbar-h: 36px;
   --ct-rail-w: 320px;
 }
 
@@ -1898,4 +1899,372 @@ html, body, #root {
   letter-spacing: 0.06em;
   filter: drop-shadow(0 0 3px currentColor);
 }
+
+/* ========================================================
+   BOTTOM STATUS BAR HUD
+   ======================================================== */
+.ct-game__statusbar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: var(--ct-sp-4);
+  padding: 0 var(--ct-sp-4);
+  background: linear-gradient(180deg, var(--ct-face-bot), var(--ct-surface-sunken));
+  border-top: 1px solid var(--ct-line-strong);
+  color: var(--ct-text-muted);
+  font-size: var(--ct-fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow-x: auto;
+  z-index: 50;
+  height: var(--ct-statusbar-h);
+}
+
+.ct-statusbar__hotkey-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid var(--ct-line-strong);
+  border-radius: var(--ct-r-sm);
+  background: var(--ct-surface-2);
+  color: var(--ct-cyan);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ct-statusbar__hotkey-pill:hover {
+  background: var(--ct-surface-hover);
+  border-color: var(--ct-cyan);
+  color: var(--ct-text-strong);
+}
+
+.ct-statusbar__hotkey-pill kbd {
+  background: var(--ct-surface-3);
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+
+/* ==================================================
+   UNIVERSAL ACCESSIBILITY FOCUS & CONTRAST
+   ================================================== */
+
+:focus-visible {
+  outline: 3px solid var(--ct-cyan) !important;
+  outline-offset: 2px !important;
+}
+
+/* Screen reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==================================================
+   HIGH-CONTRAST MODE (WCAG AAA)
+   ================================================== */
+
+.ct-high-contrast {
+  --ct-void: #000000;
+  --ct-surface-0: #040404;
+  --ct-surface-1: #0a0a0a;
+  --ct-surface-2: #141414;
+  --ct-surface-3: #1f1f1f;
+  --ct-surface-hover: #333333;
+  --ct-surface-sunken: #000000;
+  --ct-text: #ffffff;
+  --ct-text-strong: #ffffff;
+  --ct-text-muted: #e6e6e6;
+  --ct-text-faint: #cccccc;
+  --ct-line: #666666;
+  --ct-line-strong: #ffffff;
+  --ct-green: #00ff88;
+  --ct-amber: #ffea00;
+  --ct-red: #ff2255;
+  --ct-cyan: #00ffff;
+  --ct-gold: #ffea00;
+}
+
+.ct-high-contrast :focus-visible {
+  outline: 3px solid #ffea00 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px #000000 !important;
+}
+
+.ct-high-contrast .ct-node__chassis {
+  fill: #000000 !important;
+  stroke: #ffffff !important;
+  stroke-width: 2.5px !important;
+}
+
+.ct-high-contrast .ct-btn,
+.ct-high-contrast .ct-tool {
+  border-width: 2px !important;
+  border-color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.ct-high-contrast .ct-btn--primary {
+  background: #00ffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+.ct-high-contrast .ct-btn--danger {
+  background: #ff2255 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+/* ==================================================
+   LARGE TEXT MODE
+   ================================================== */
+
+.ct-large-text {
+  --ct-fs-xs: 0.8125rem;
+  --ct-fs-sm: 0.9375rem;
+  --ct-fs-md: 1.0625rem;
+  --ct-fs-lg: 1.25rem;
+  --ct-fs-xl: 1.45rem;
+  --ct-fs-2xl: 1.875rem;
+  --ct-topbar-h: 68px;
+  --ct-statusbar-h: 48px;
+  --ct-rail-w: 380px;
+  font-size: var(--ct-fs-md);
+}
+
+.ct-large-text .ct-btn,
+.ct-large-text .ct-tool {
+  min-height: 48px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  font-size: 1rem !important;
+}
+
+.ct-large-text .ct-select {
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+/* ==================================================
+   ACCESSIBLE CLUSTER MATRIX MODAL
+   ================================================== */
+
+.ct-matrix-modal {
+  position: relative;
+  width: 95vw;
+  max-width: 1400px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ct-surface-1);
+  border: 2px solid var(--ct-cyan);
+  border-radius: var(--ct-r-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(53, 224, 245, 0.2);
+  overflow: hidden;
+  color: var(--ct-text);
+  font-family: var(--ct-font-mono);
+  z-index: 1000;
+}
+
+.ct-matrix-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--ct-line-strong);
+  background: var(--ct-surface-2);
+}
+
+.ct-matrix-modal__title {
+  font-size: var(--ct-fs-xl);
+  font-family: var(--ct-font-display);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--ct-text-strong);
+}
+
+.ct-matrix-modal__subtitle {
+  font-size: var(--ct-fs-sm);
+  color: var(--ct-text-muted);
+  margin-top: 4px;
+}
+
+.ct-matrix-modal__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 14px 24px;
+  background: var(--ct-surface-0);
+  border-bottom: 1px solid var(--ct-line);
+}
+
+.ct-matrix-stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 130px;
+}
+
+.ct-matrix-stat__label {
+  font-size: 0.7rem;
+  color: var(--ct-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ct-matrix-stat__value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-family: var(--ct-font-display);
+}
+
+.ct-matrix-modal__deploy-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--ct-surface-2);
+  border-bottom: 1px solid var(--ct-line);
+}
+
+.ct-matrix-modal__table-container {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 16px 24px;
+  background: var(--ct-surface-sunken);
+}
+
+.ct-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--ct-fs-sm);
+}
+
+.ct-matrix-table th {
+  position: sticky;
+  top: 0;
+  background: var(--ct-surface-2);
+  color: var(--ct-cyan);
+  padding: 12px 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--ct-line-strong);
+  z-index: 5;
+}
+
+.ct-matrix-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--ct-line);
+  vertical-align: middle;
+}
+
+.ct-matrix-table tbody tr:hover {
+  background: rgba(53, 224, 245, 0.05);
+}
+
+.ct-matrix-row--selected {
+  background: rgba(53, 224, 245, 0.12) !important;
+  outline: 2px solid var(--ct-cyan);
+}
+
+.ct-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--ct-r-sm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid currentColor;
+}
+
+.ct-status-badge--nominal {
+  color: var(--ct-green);
+  background: rgba(46, 230, 168, 0.15);
+}
+
+.ct-status-badge--warning {
+  color: var(--ct-amber);
+  background: rgba(255, 154, 46, 0.18);
+}
+
+.ct-status-badge--critical {
+  color: var(--ct-red);
+  background: rgba(255, 84, 112, 0.2);
+}
+
+.ct-status-badge--meltdown {
+  color: #ff2255;
+  background: rgba(255, 34, 85, 0.3);
+  animation: pulse 1s infinite;
+}
+
+.ct-status-badge--offline {
+  color: var(--ct-text-faint);
+  background: rgba(100, 100, 100, 0.2);
+}
+
+.ct-meter-track {
+  width: 100%;
+  min-width: 90px;
+  height: 6px;
+  background: var(--ct-surface-3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ct-meter-fill {
+  height: 100%;
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.ct-select {
+  padding: 6px 12px;
+  background: var(--ct-surface-3);
+  color: var(--ct-text-strong);
+  border: 1px solid var(--ct-line-strong);
+  border-radius: var(--ct-r-sm);
+  font-family: inherit;
+  font-size: var(--ct-fs-sm);
+  outline: none;
+}
+
+.ct-select:focus {
+  border-color: var(--ct-cyan);
+}
+
+.ct-select--xs {
+  padding: 3px 6px;
+  font-size: 0.75rem;
+}
+
+.ct-btn--xs {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  gap: 4px;
+}
+
+.ct-matrix-modal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: var(--ct-surface-2);
+  border-top: 1px solid var(--ct-line-strong);
+}
+
 

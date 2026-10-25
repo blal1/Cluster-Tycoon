@@ -38,6 +38,8 @@ class ProceduralAudioEngine {
   private musicVol = 0.7;
   private musicEnabled = true;
   private vibrationEnabled = true;
+  private speechSynthesisEnabled = false;
+  private soundBeaconOnSelect = true;
 
   constructor() {
     // Lazily initialized on first user interaction
@@ -113,12 +115,20 @@ class ProceduralAudioEngine {
     musicEnabled: boolean;
     musicVolume: number;
     vibrationEnabled: boolean;
+    speechSynthesisEnabled?: boolean;
+    soundBeaconOnSelect?: boolean;
   }) {
     this.masterVol = Math.max(0, Math.min(1, settings.masterVolume));
     this.sfxVol = Math.max(0, Math.min(1, settings.sfxVolume));
     this.musicVol = Math.max(0, Math.min(1, settings.musicVolume));
     this.musicEnabled = settings.musicEnabled;
     this.vibrationEnabled = settings.vibrationEnabled;
+    if (settings.speechSynthesisEnabled !== undefined) {
+      this.speechSynthesisEnabled = settings.speechSynthesisEnabled;
+    }
+    if (settings.soundBeaconOnSelect !== undefined) {
+      this.soundBeaconOnSelect = settings.soundBeaconOnSelect;
+    }
 
     if (this.ctx) {
       const now = this.ctx.currentTime;
@@ -133,6 +143,92 @@ class ProceduralAudioEngine {
       this.startMusic();
     } else if (!this.musicEnabled && this.musicActive) {
       this.stopMusic();
+    }
+  }
+
+  // ==========================================
+  // ACCESSIBILITY VOICE & AUDITORY BEACONS
+  // ==========================================
+
+  public speakText(text: string, priority: 'normal' | 'urgent' = 'normal') {
+    if (!this.speechSynthesisEnabled) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      if (priority === 'urgent') {
+        window.speechSynthesis.cancel();
+      }
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.15;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // Ignored if browser speech synthesis blocked
+    }
+  }
+
+  public playNodeBeacon(status: 'nominal' | 'warning' | 'critical' | 'meltdown' | 'offline') {
+    if (!this.soundBeaconOnSelect) return;
+    const handle = this.ensureContext();
+    if (!handle) return;
+    const { ctx, sfxBus } = handle;
+    const now = ctx.currentTime;
+
+    if (status === 'nominal') {
+      // Clean ascending chime
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(1320, now + 0.04);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+      osc.connect(gain);
+      gain.connect(sfxBus);
+      osc.start(now);
+      osc.stop(now + 0.17);
+    } else if (status === 'warning') {
+      // Dissonant minor second pulse
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.type = 'triangle';
+      osc2.type = 'triangle';
+      osc1.frequency.setValueAtTime(587, now);
+      osc2.frequency.setValueAtTime(622, now);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(sfxBus);
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.23);
+      osc2.stop(now + 0.23);
+    } else if (status === 'critical' || status === 'meltdown') {
+      // Urgent sawtooth alarm chirp
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(1174, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.25);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.connect(gain);
+      gain.connect(sfxBus);
+      osc.start(now);
+      osc.stop(now + 0.26);
+    } else {
+      // Muted low click for offline
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(160, now);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(sfxBus);
+      osc.start(now);
+      osc.stop(now + 0.09);
     }
   }
 

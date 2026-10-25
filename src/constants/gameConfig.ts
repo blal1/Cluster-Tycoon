@@ -135,6 +135,18 @@ export const DEFAULT_SETTINGS = {
   vibrationEnabled: true,
   crtScanlines: true,
   highContrast: false,
+  largeText: false,
+  screenReaderAnnouncements: true,
+  speechSynthesisEnabled: false,
+  soundBeaconOnSelect: true,
+};
+
+export const STATUS_NON_COLOR_LABELS: Record<string, { label: string; glyph: string; ariaText: string }> = {
+  nominal: { label: 'NOMINAL', glyph: '✓', ariaText: 'Status nominal, normal operation' },
+  warning: { label: 'WARNING', glyph: '▲', ariaText: 'Status warning, elevated load' },
+  critical: { label: 'CRITICAL', glyph: '✕', ariaText: 'Status critical, server overload' },
+  offline: { label: 'OFFLINE', glyph: '⊘', ariaText: 'Status offline, powered down' },
+  meltdown: { label: 'MELTDOWN', glyph: '⚡', ariaText: 'Status meltdown, thermal cooling emergency' },
 };
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
@@ -228,4 +240,23 @@ export function getRamUpgradeCost(node: { kind: NodeKind; ramTier?: number }): n
   const base = Math.max(40, Math.round(tmpl.upgradeCostUsd * 0.45));
   return Math.round(base * Math.pow(1.4, currentTier));
 }
+
+export function getStorageUpgradeCost(node: { kind: NodeKind; storageGb: number }): number {
+  if (node.kind !== 'storage' && node.kind !== 'database') return 0;
+  const tmpl = NODE_TEMPLATES[node.kind];
+  const factor = Math.max(1, node.storageGb / tmpl.storageGb);
+  return Math.round(tmpl.upgradeCostUsd * 0.7 * factor);
+}
+
+export function getReplicationCost(node: { kind: NodeKind; replication: number }): number {
+  if (node.kind !== 'database') return 0;
+  if (node.replication >= 5) return 0;
+  return Math.round(200 * Math.pow(1.4, node.replication - 1));
+}
+
+export function getShardingCost(node: { kind: NodeKind; sharding: boolean }): number {
+  if (node.kind !== 'database' || node.sharding) return 0;
+  return 350;
+}
+
 

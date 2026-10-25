@@ -8,6 +8,7 @@ import {
   formatRps,
   CPU_TIER_CONFIG,
   RAM_TIER_CONFIG,
+  STATUS_NON_COLOR_LABELS,
 } from '../../constants/gameConfig';
 
 interface NodeElementProps {
@@ -112,13 +113,15 @@ export const NodeElement: React.FC<NodeElementProps> = memo(
     const iconY = dims.h / 2 - 16;
     const iconPaths = NODE_ICONS[node.kind] || NODE_ICONS.server;
 
+    const statusMeta = STATUS_NON_COLOR_LABELS[node.status] || { label: node.status.toUpperCase(), glyph: '•' };
+
     return (
       <g
         data-ct-node={node.id}
         className={`ct-node ${selected ? 'ct-node--selected' : ''}`}
         role="button"
         tabIndex={tabbable ? 0 : -1}
-        aria-label={`${node.name}, ${tmpl.label}, status ${node.status}, handling ${formatRps(node.currentRps)}`}
+        aria-label={`${node.name} (${tmpl.label}), Status: ${statusMeta.glyph} ${statusMeta.label}, CPU: ${formatPercent(node.cpuUtilization)}, RAM: ${node.ramGb > 0 ? `${node.ramUsedGb}/${node.ramGb} GB` : 'N/A'}, Throughput: ${formatRps(node.currentRps)}. Press Enter or Space to inspect.`}
       >
         {/* Selection Focus Ring */}
         {selected && (
@@ -340,15 +343,30 @@ export const NodeElement: React.FC<NodeElementProps> = memo(
             </text>
           )}
 
-          {/* Pulsing Status LED */}
-          <circle
-            className="ct-node__led"
-            cx={dims.w - 14}
-            cy={14}
-            r={4.5}
-            data-status={node.status}
-            fill={statusColor}
-          />
+          {/* Pulsing Status LED & Non-Color Accessible Glyph */}
+          <g className="ct-node__status-group">
+            <circle
+              className="ct-node__led"
+              cx={dims.w - 14}
+              cy={14}
+              r={4.5}
+              data-status={node.status}
+              fill={statusColor}
+              stroke="rgba(255,255,255,0.7)"
+              strokeWidth={0.75}
+            />
+            {/* Explicit non-color symbol text so color blindness does not impede perception */}
+            <text
+              x={dims.w - 22}
+              y={16}
+              textAnchor="end"
+              className="ct-node__status-symbol"
+              fill={statusColor}
+              style={{ fontSize: '9px', fontWeight: 'bold', fontFamily: 'monospace' }}
+            >
+              {statusMeta.glyph} {statusMeta.label}
+            </text>
+          </g>
 
           {/* DDoS Shield Badge */}
           {node.shielded && (

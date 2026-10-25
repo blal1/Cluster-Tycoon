@@ -12,6 +12,11 @@ import {
   Trash2,
   Play,
   RotateCcw,
+  Eye,
+  Type,
+  Megaphone,
+  BellRing,
+  Sparkles,
 } from 'lucide-react';
 
 export const SettingsScreen: React.FC = () => {
@@ -49,6 +54,50 @@ export const SettingsScreen: React.FC = () => {
   const handleToggleCrt = () => {
     audio.playClick();
     dispatch({ type: 'updateSettings', patch: { crtScanlines: !settings.crtScanlines } });
+  };
+
+  const handleToggleHighContrast = () => {
+    audio.playClick();
+    dispatch({ type: 'updateSettings', patch: { highContrast: !settings.highContrast } });
+  };
+
+  const handleToggleLargeText = () => {
+    audio.playClick();
+    dispatch({ type: 'updateSettings', patch: { largeText: !settings.largeText } });
+  };
+
+  const handleToggleAnnouncements = () => {
+    audio.playClick();
+    dispatch({
+      type: 'updateSettings',
+      patch: { screenReaderAnnouncements: !settings.screenReaderAnnouncements },
+    });
+  };
+
+  const handleToggleSpeech = () => {
+    audio.playClick();
+    const nextVal = !settings.speechSynthesisEnabled;
+    dispatch({
+      type: 'updateSettings',
+      patch: { speechSynthesisEnabled: nextVal },
+    });
+    if (nextVal) {
+      setTimeout(() => {
+        audio.speakText("Speech telemetry enabled. Live status announcements active.", "urgent");
+      }, 50);
+    }
+  };
+
+  const handleToggleBeacons = () => {
+    audio.playClick();
+    dispatch({
+      type: 'updateSettings',
+      patch: { soundBeaconOnSelect: !settings.soundBeaconOnSelect },
+    });
+  };
+
+  const handleTestSpeech = () => {
+    audio.speakText("Cluster telemetry online. All servers nominal. Inbound traffic at 650 requests per second.", "urgent");
   };
 
   const handleResetData = () => {
@@ -266,6 +315,145 @@ export const SettingsScreen: React.FC = () => {
                 </span>
                 <span>{settings.crtScanlines ? 'ENABLED' : 'DISABLED'}</span>
               </button>
+            </div>
+          </div>
+
+          {/* ================================================== */}
+          {/* ACCESSIBILITY & LOW VISION PREFERENCES */}
+          {/* ================================================== */}
+          <div className="pt-4 border-t border-[var(--ct-line-strong)]">
+            <h2 className="text-sm font-bold text-cyan-300 font-mono tracking-wide uppercase flex items-center gap-2 mb-4">
+              <Eye size={16} />
+              <span>Accessibility & Low-Vision Features</span>
+            </h2>
+
+            {/* High Contrast Mode */}
+            <div className="ct-field">
+              <label className="ct-field__label">
+                <Sparkles size={15} className="inline mr-1 text-cyan-300" />
+                High-Contrast Mode (WCAG AAA)
+              </label>
+              <p className="ct-field__help">
+                Applies maximum contrast (solid pure black, pure white text, bright neon cyan/yellow badges, bold 2.5px borders, and disables scanline shaders).
+              </p>
+              <div className="ct-field__row">
+                <button
+                  type="button"
+                  className={`ct-toggle ${settings.highContrast ? 'ct-toggle--on' : ''}`}
+                  onClick={handleToggleHighContrast}
+                  aria-pressed={settings.highContrast}
+                >
+                  <span className="ct-toggle__track">
+                    <span className="ct-toggle__thumb" />
+                  </span>
+                  <span>{settings.highContrast ? 'HIGH CONTRAST ON' : 'STANDARD DARK'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Large Text Mode */}
+            <div className="ct-field">
+              <label className="ct-field__label">
+                <Type size={15} className="inline mr-1 text-purple-300" />
+                Large Text & Enlarged Hit Targets
+              </label>
+              <p className="ct-field__help">
+                Scales typographic hierarchy by 25–35% and increases button heights to minimum 48px for easier reading and interaction.
+              </p>
+              <div className="ct-field__row">
+                <button
+                  type="button"
+                  className={`ct-toggle ${settings.largeText ? 'ct-toggle--on' : ''}`}
+                  onClick={handleToggleLargeText}
+                  aria-pressed={settings.largeText}
+                >
+                  <span className="ct-toggle__track">
+                    <span className="ct-toggle__thumb" />
+                  </span>
+                  <span>{settings.largeText ? 'LARGE TEXT ON' : 'STANDARD SIZE'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Live Screen Reader Announcements */}
+            <div className="ct-field">
+              <label className="ct-field__label">
+                <Megaphone size={15} className="inline mr-1 text-green-300" />
+                Screen Reader Live Alerts (ARIA Live Regions)
+              </label>
+              <p className="ct-field__help">
+                Emits ARIA polite and assertive telemetry updates when meltdowns occur, invoices arrive, incidents trigger, or nodes are selected.
+              </p>
+              <div className="ct-field__row">
+                <button
+                  type="button"
+                  className={`ct-toggle ${settings.screenReaderAnnouncements ? 'ct-toggle--on' : ''}`}
+                  onClick={handleToggleAnnouncements}
+                  aria-pressed={settings.screenReaderAnnouncements}
+                >
+                  <span className="ct-toggle__track">
+                    <span className="ct-toggle__thumb" />
+                  </span>
+                  <span>{settings.screenReaderAnnouncements ? 'ANNOUNCEMENTS ACTIVE' : 'MUTED'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Text-to-Speech Spoken Telemetry */}
+            <div className="ct-field">
+              <label className="ct-field__label">
+                <Volume2 size={15} className="inline mr-1 text-yellow-300" />
+                Spoken Voice Telemetry (Web Speech API)
+              </label>
+              <p className="ct-field__help">
+                Audibly speaks cluster emergencies, bill due dates, and server selections through your browser's speech synthesizer.
+              </p>
+              <div className="ct-field__row flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={`ct-toggle ${settings.speechSynthesisEnabled ? 'ct-toggle--on' : ''}`}
+                  onClick={handleToggleSpeech}
+                  aria-pressed={settings.speechSynthesisEnabled}
+                >
+                  <span className="ct-toggle__track">
+                    <span className="ct-toggle__thumb" />
+                  </span>
+                  <span>{settings.speechSynthesisEnabled ? 'VOICE READOUT ON' : 'OFF'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="ct-btn ct-btn--sm"
+                  onClick={handleTestSpeech}
+                >
+                  <Play size={12} />
+                  <span>Test Voice Announcement</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Auditory Earcon Beacons */}
+            <div className="ct-field">
+              <label className="ct-field__label">
+                <BellRing size={15} className="inline mr-1 text-cyan-300" />
+                Node Earcon Beacons (Auditory Health Cues)
+              </label>
+              <p className="ct-field__help">
+                Synthesizes distinct procedural audio cues when selecting nodes: pure chime for nominal, dissonant warble for high load, downward sweep for critical/meltdown.
+              </p>
+              <div className="ct-field__row">
+                <button
+                  type="button"
+                  className={`ct-toggle ${settings.soundBeaconOnSelect ? 'ct-toggle--on' : ''}`}
+                  onClick={handleToggleBeacons}
+                  aria-pressed={settings.soundBeaconOnSelect}
+                >
+                  <span className="ct-toggle__track">
+                    <span className="ct-toggle__thumb" />
+                  </span>
+                  <span>{settings.soundBeaconOnSelect ? 'BEACONS ACTIVE' : 'DISABLED'}</span>
+                </button>
+              </div>
             </div>
           </div>
 

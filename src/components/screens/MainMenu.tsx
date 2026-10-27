@@ -2,70 +2,27 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore, dispatch, loadCluster, getHighScore } from '../../store/gameStore';
 import { GameDifficulty } from '../../types/game';
 import { audio } from '../../audio/proceduralAudio';
-import { BILLING_CYCLE_SECONDS } from '../../constants/gameConfig';
 import {
   Play,
   RotateCcw,
   BookOpen,
   Settings,
-  Sparkles,
-  Zap,
   Server,
   Trophy,
+  Shield,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 
 export const MainMenu: React.FC = () => {
   const hasSave = useAppStore((s) => s.hasSave);
   const [difficulty, setDifficulty] = useState<GameDifficulty>('normal');
-  const [glitching, setGlitching] = useState(false);
-  const [electric, setElectric] = useState(false);
   const highScore = getHighScore();
 
   const newClusterRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     newClusterRef.current?.focus();
-  }, []);
-
-  // Periodic visual glitch / lightning effects
-  useEffect(() => {
-    let unmounted = false;
-
-    const glitchLoop = () => {
-      if (unmounted) return;
-      const delay = 8000 + Math.random() * 6000;
-      window.setTimeout(() => {
-        if (unmounted) return;
-        setGlitching(true);
-        audio.playGlitchHit();
-        audio.triggerVibrate(80);
-        window.setTimeout(() => {
-          if (!unmounted) setGlitching(false);
-        }, 650);
-        glitchLoop();
-      }, delay);
-    };
-
-    const electricLoop = () => {
-      if (unmounted) return;
-      const delay = 4500 + Math.random() * 5000;
-      window.setTimeout(() => {
-        if (unmounted) return;
-        setElectric(true);
-        audio.playDigitalTear();
-        window.setTimeout(() => {
-          if (!unmounted) setElectric(false);
-        }, 380);
-        electricLoop();
-      }, delay);
-    };
-
-    glitchLoop();
-    electricLoop();
-
-    return () => {
-      unmounted = true;
-    };
   }, []);
 
   const handleStartNew = () => {
@@ -86,69 +43,47 @@ export const MainMenu: React.FC = () => {
   };
 
   return (
-    <div className={`ct-app__center ct-app__center--menu ${glitching ? 'ct-menu--glitching' : ''} ${electric ? 'ct-menu--electric' : ''}`}>
-      {/* Electric Lightning Overlay */}
-      {electric && (
-        <svg
-          className="ct-menu__lightning"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <polyline
-            points="10,0 35,40 20,45 55,100"
-            fill="none"
-            stroke="var(--ct-cyan)"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-            style={{ filter: 'drop-shadow(0 0 6px var(--ct-cyan))' }}
-          />
-          <polyline
-            points="60,0 80,30 68,34 92,100"
-            fill="none"
-            stroke="var(--ct-deck-hot)"
-            strokeWidth="0.8"
-            strokeLinecap="round"
-            opacity="0.7"
-          />
-        </svg>
-      )}
-
+    <div className="ct-app__center ct-app__center--menu">
       <nav className="ct-menu" aria-labelledby="menu-title">
         {/* Left Hero Column */}
         <div className="ct-menu__hero">
           <p className="ct-menu__eyebrow">
-            <Zap size={13} className="inline mr-1 text-cyan-400" />
-            Backend Infrastructure Simulator
+            Distributed Systems & Infrastructure Simulation
           </p>
-          <h1 className="ct-menu__title" id="menu-title" data-text="Cluster Tycoon">
+          <h1 className="ct-menu__title" id="menu-title">
             Cluster Tycoon
           </h1>
           <hr className="ct-menu__rule" />
-          <span className="ct-menu__version">v0.2.0 • 100% Procedural Audio</span>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span>Version 0.2.0</span>
+            <span aria-hidden="true">·</span>
+            <span>Local Simulation</span>
+            <span aria-hidden="true">·</span>
+            <span>Real-time Topology</span>
+          </div>
 
           <p className="ct-menu__tagline">
-            Top-down cloud architecture, load balancing, and systems administration simulation.
-            Route synthetic internet traffic, withstand DDoS surges and hardware meltdowns, and survive
-            the monthly cloud billing cycle. Runs fully offline with procedural synthesis.
+            Design, scale, and operate resilient cloud infrastructure. Wire ingress load balancers,
+            app servers, in-memory caches, and managed databases to serve incoming HTTP demand while
+            maintaining operational uptime and budget solvency.
           </p>
 
           <dl className="ct-menu__stats">
             <div className="ct-menu__stat">
-              <dt>Billing Period</dt>
-              <dd>{BILLING_CYCLE_SECONDS}s</dd>
+              <dt>Billing Interval</dt>
+              <dd>180 seconds</dd>
             </div>
             <div className="ct-menu__stat">
-              <dt>Node Classes</dt>
-              <dd>6 Modules</dd>
+              <dt>Target Uptime</dt>
+              <dd>99.9% SLA</dd>
             </div>
             <div className="ct-menu__stat">
-              <dt>Sound Engine</dt>
-              <dd>Web Audio API</dd>
+              <dt>Components</dt>
+              <dd>6 Node Classes</dd>
             </div>
             {highScore > 0 && (
               <div className="ct-menu__stat">
-                <dt>High Score</dt>
+                <dt>Best SRE Score</dt>
                 <dd className="text-yellow-400">
                   <Trophy size={14} className="inline mr-1" />
                   {highScore}
@@ -163,18 +98,19 @@ export const MainMenu: React.FC = () => {
           <div className="ct-menu__nav">
             {/* Difficulty selector */}
             <label className="ct-menu__difficulty">
-              <span>Difficulty Mode</span>
+              <span>Simulation Difficulty</span>
               <select
                 value={difficulty}
                 onChange={(e) => {
                   audio.playClick();
                   setDifficulty(e.target.value as GameDifficulty);
                 }}
+                aria-label="Simulation Difficulty"
               >
-                <option value="easy">Easy (150% Cash, Slower Growth)</option>
-                <option value="normal">Normal (Standard Cloud Ops)</option>
-                <option value="hard">Hard (Strict Budget, Fierce Surges)</option>
-                <option value="endless">Endless (Sandbox Sandbox Mode)</option>
+                <option value="easy">Easy — $3,600 starting capital, gentle traffic growth</option>
+                <option value="normal">Normal — $2,400 standard operating budget</option>
+                <option value="hard">Hard — $1,200 constrained capital, rapid demand surges</option>
+                <option value="endless">Endless — Sandbox mode with no bankruptcy suspension</option>
               </select>
             </label>
 
@@ -186,7 +122,7 @@ export const MainMenu: React.FC = () => {
               onClick={handleStartNew}
             >
               <Play size={18} />
-              <span>Launch New Cluster</span>
+              <span>Start Simulation</span>
             </button>
 
             <button
@@ -194,10 +130,10 @@ export const MainMenu: React.FC = () => {
               className="ct-btn ct-btn--block"
               disabled={!hasSave}
               onClick={handleLoadBackup}
-              title={hasSave ? 'Restore saved snapshot' : 'No save file found'}
+              title={hasSave ? 'Resume existing cluster state' : 'No saved cluster found in browser storage'}
             >
               <RotateCcw size={18} />
-              <span>Load Saved Cluster</span>
+              <span>Continue Cluster</span>
             </button>
 
             <button
@@ -209,7 +145,7 @@ export const MainMenu: React.FC = () => {
               }}
             >
               <BookOpen size={18} />
-              <span>System Manual & Docs</span>
+              <span>Operations Manual</span>
             </button>
 
             <button
@@ -221,13 +157,12 @@ export const MainMenu: React.FC = () => {
               }}
             >
               <Settings size={18} />
-              <span>Settings & Audio Lab</span>
+              <span>Preferences & Accessibility</span>
             </button>
           </div>
 
           <p className="ct-menu__hint">
-            <kbd>Space</kbd> opens the command palette in-game. <kbd>F</kbd> frames the cluster canvas.{' '}
-            <kbd>Alt + Click</kbd> severs wire links.
+            Shortcuts: <kbd>Space</kbd> Palette · <kbd>Alt + I</kbd> Incidents · <kbd>Alt + A</kbd> Matrix · <kbd>?</kbd> Hotkeys
           </p>
         </div>
       </nav>

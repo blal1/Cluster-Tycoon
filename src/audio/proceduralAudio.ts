@@ -592,6 +592,90 @@ class ProceduralAudioEngine {
     osc.stop(now + 0.1);
   }
 
+  public playPowerSpark() {
+    const handle = this.ensureContext();
+    if (!handle) return;
+    const { ctx, sfxBus } = handle;
+    const now = ctx.currentTime;
+
+    // Crackling electrical arc: rapid random frequency bursts & filtered white noise
+    [0, 0.04, 0.09, 0.15].forEach((offset, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      const freq = 120 + (idx % 2 === 0 ? 380 : 750) + Math.random() * 200;
+      osc.frequency.setValueAtTime(freq, now + offset);
+      osc.frequency.linearRampToValueAtTime(80, now + offset + 0.035);
+      gain.gain.setValueAtTime(0.3, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.035);
+      osc.connect(gain);
+      gain.connect(sfxBus);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.04);
+    });
+
+    if (this.noiseBuffer) {
+      const noise = ctx.createBufferSource();
+      noise.buffer = this.noiseBuffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(3200, now);
+      filter.Q.value = 5;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(sfxBus);
+      noise.start(now);
+      noise.stop(now + 0.22);
+    }
+  }
+
+  public playDdosAlarm() {
+    const handle = this.ensureContext();
+    if (!handle) return;
+    const { ctx, sfxBus } = handle;
+    const now = ctx.currentTime;
+
+    // High urgency rapid cyber sweep
+    [0, 0.08, 0.16, 0.24].forEach((time, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(i % 2 === 0 ? 1200 : 900, now + time);
+      osc.frequency.exponentialRampToValueAtTime(450, now + time + 0.06);
+      gain.gain.setValueAtTime(0.32, now + time);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + time + 0.065);
+      osc.connect(gain);
+      gain.connect(sfxBus);
+      osc.start(now + time);
+      osc.stop(now + time + 0.07);
+    });
+  }
+
+  public playMitigationSuccess() {
+    const handle = this.ensureContext();
+    if (!handle) return;
+    const { ctx, sfxBus } = handle;
+    const now = ctx.currentTime;
+
+    // Harmonious major triad resolution (F5 -> A5 -> C6)
+    [698.46, 880.0, 1046.5].forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+      gain.gain.setValueAtTime(0.001, now + idx * 0.05);
+      gain.gain.linearRampToValueAtTime(0.25, now + idx * 0.05 + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.05 + 0.35);
+      osc.connect(gain);
+      gain.connect(sfxBus);
+      osc.start(now + idx * 0.05);
+      osc.stop(now + idx * 0.05 + 0.38);
+    });
+  }
+
   // ==========================================
   // DYNAMIC SERVER RACK HUM & FAN AMBIENCE
   // ==========================================

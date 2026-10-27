@@ -16,7 +16,8 @@ import {
   Type,
   Megaphone,
   BellRing,
-  Sparkles,
+  Shield,
+  Sliders,
 } from 'lucide-react';
 
 export const SettingsScreen: React.FC = () => {
@@ -83,7 +84,7 @@ export const SettingsScreen: React.FC = () => {
     });
     if (nextVal) {
       setTimeout(() => {
-        audio.speakText("Speech telemetry enabled. Live status announcements active.", "urgent");
+        audio.speakText("Spoken telemetry active.", "urgent");
       }, 50);
     }
   };
@@ -94,10 +95,6 @@ export const SettingsScreen: React.FC = () => {
       type: 'updateSettings',
       patch: { soundBeaconOnSelect: !settings.soundBeaconOnSelect },
     });
-  };
-
-  const handleTestSpeech = () => {
-    audio.speakText("Cluster telemetry online. All servers nominal. Inbound traffic at 650 requests per second.", "urgent");
   };
 
   const handleResetData = () => {
@@ -112,10 +109,10 @@ export const SettingsScreen: React.FC = () => {
         <div className="ct-doc__head">
           <div>
             <h1 className="ct-doc__title" id="settings-title">
-              System Settings & Audio Lab
+              Preferences & Accessibility
             </h1>
             <p className="ct-doc__subtitle">
-              Configure hardware telemetry, procedural audio synthesis, and graphics shaders.
+              Audio levels, display modes, and assistive accessibility configuration.
             </p>
           </div>
           <button type="button" className="ct-btn" onClick={handleBack}>
@@ -126,215 +123,155 @@ export const SettingsScreen: React.FC = () => {
 
         {/* Settings Body */}
         <div className="ct-doc__body">
-          {/* Master Volume */}
-          <div className="ct-field">
-            <label className="ct-field__label" htmlFor="set-master">
-              <Volume2 size={15} className="inline mr-1 text-cyan-400" />
-              Master Volume
-            </label>
-            <p className="ct-field__help">
-              Controls overall gain for all procedural audio output including the continuous data center fan hum.
-            </p>
-            <div className="ct-field__row">
-              <input
-                id="set-master"
-                className="ct-slider"
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(settings.masterVolume * 100)}
-                onChange={(e) => handleMasterChange(Number(e.target.value) / 100)}
-              />
-              <output className="ct-readout">{formatPercent(settings.masterVolume)}</output>
-            </div>
-          </div>
+          {/* Section: Audio */}
+          <div className="mb-6">
+            <h2 className="text-xs font-bold text-slate-300 font-mono tracking-wider uppercase mb-3 flex items-center gap-2">
+              <Volume2 size={14} className="text-cyan-400" />
+              <span>Audio Configuration</span>
+            </h2>
 
-          {/* SFX Volume */}
-          <div className="ct-field">
-            <label className="ct-field__label" htmlFor="set-sfx">
-              <Volume2 size={15} className="inline mr-1 text-green-400" />
-              Sound Effects Volume
-            </label>
-            <p className="ct-field__help">
-              Level for discrete relays, computer chirps, circuit connections, and alarms.
-            </p>
-            <div className="ct-field__row">
-              <input
-                id="set-sfx"
-                className="ct-slider"
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round(settings.sfxVolume * 100)}
-                onChange={(e) => handleSfxChange(Number(e.target.value) / 100)}
-              />
-              <output className="ct-readout">{formatPercent(settings.sfxVolume)}</output>
+            {/* Master Volume */}
+            <div className="ct-field">
+              <label className="ct-field__label" htmlFor="set-master">
+                Master Volume
+              </label>
+              <p className="ct-field__help">Overall sound level for the simulation.</p>
+              <div className="ct-field__row">
+                <input
+                  id="set-master"
+                  className="ct-slider"
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(settings.masterVolume * 100)}
+                  onChange={(e) => handleMasterChange(Number(e.target.value) / 100)}
+                  aria-label="Master Volume"
+                />
+                <output className="ct-readout">{formatPercent(settings.masterVolume)}</output>
+              </div>
             </div>
 
-            {/* Interactive Procedural Audio Test Deck */}
-            <div className="mt-3">
-              <span className="text-xs text-muted block mb-2 font-mono uppercase tracking-wide">
-                Test Procedural Sound Generators:
-              </span>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="ct-btn ct-btn--sm"
-                  onClick={() => audio.playClick()}
-                >
-                  <Play size={12} /> Click
-                </button>
+            {/* SFX Volume */}
+            <div className="ct-field">
+              <label className="ct-field__label" htmlFor="set-sfx">
+                Sound Effects
+              </label>
+              <p className="ct-field__help">Volume for relay clicks, alarms, and node deployment sounds.</p>
+              <div className="ct-field__row">
+                <input
+                  id="set-sfx"
+                  className="ct-slider"
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(settings.sfxVolume * 100)}
+                  onChange={(e) => handleSfxChange(Number(e.target.value) / 100)}
+                  aria-label="Sound Effects Volume"
+                />
+                <output className="ct-readout">{formatPercent(settings.sfxVolume)}</output>
                 <button
                   type="button"
                   className="ct-btn ct-btn--sm"
                   onClick={() => audio.playSelect()}
+                  title="Test sound effect"
                 >
-                  <Play size={12} /> Chirp
+                  <Play size={12} />
+                  <span>Preview</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Ambient Background Music */}
+            <div className="ct-field">
+              <label className="ct-field__label" htmlFor="set-music">
+                Background Music
+              </label>
+              <p className="ct-field__help">Procedural ambient synth pad.</p>
+              <div className="ct-field__row">
                 <button
                   type="button"
-                  className="ct-btn ct-btn--sm"
-                  onClick={() => audio.playConnect()}
+                  className={`ct-toggle ${settings.musicEnabled ? 'ct-toggle--on' : ''}`}
+                  onClick={handleToggleMusic}
+                  aria-pressed={settings.musicEnabled}
                 >
-                  <Play size={12} /> Link Triad
+                  <span className="ct-toggle__track">
+                    <span className="ct-toggle__thumb" />
+                  </span>
+                  <span>{settings.musicEnabled ? 'Enabled' : 'Muted'}</span>
                 </button>
+                <input
+                  id="set-music"
+                  className="ct-slider"
+                  type="range"
+                  min={0}
+                  max={100}
+                  disabled={!settings.musicEnabled}
+                  value={Math.round(settings.musicVolume * 100)}
+                  onChange={(e) => handleMusicChange(Number(e.target.value) / 100)}
+                  aria-label="Background Music Volume"
+                />
+                <output className="ct-readout">{formatPercent(settings.musicVolume)}</output>
+              </div>
+            </div>
+
+            {/* Haptic Vibration */}
+            <div className="ct-field">
+              <label className="ct-field__label">Haptic Vibration</label>
+              <p className="ct-field__help">Tactile vibration feedback on supported mobile devices.</p>
+              <div className="ct-field__row">
                 <button
                   type="button"
-                  className="ct-btn ct-btn--sm"
-                  onClick={() => audio.playDeploy()}
+                  className={`ct-toggle ${settings.vibrationEnabled ? 'ct-toggle--on' : ''}`}
+                  onClick={handleToggleVibration}
+                  aria-pressed={settings.vibrationEnabled}
                 >
-                  <Play size={12} /> Rack Thud
-                </button>
-                <button
-                  type="button"
-                  className="ct-btn ct-btn--sm"
-                  onClick={() => audio.playPaySuccess()}
-                >
-                  <Play size={12} /> Cash Chime
-                </button>
-                <button
-                  type="button"
-                  className="ct-btn ct-btn--sm"
-                  onClick={() => audio.playMeltdown()}
-                >
-                  <Play size={12} /> Siren Alarm
-                </button>
-                <button
-                  type="button"
-                  className="ct-btn ct-btn--sm"
-                  onClick={() => audio.playGlitchHit()}
-                >
-                  <Play size={12} /> Glitch
-                </button>
-                <button
-                  type="button"
-                  className="ct-btn ct-btn--sm"
-                  onClick={() => audio.playDigitalTear()}
-                >
-                  <Play size={12} /> Electric Spark
+                  <span className="ct-toggle__track">
+                    <span className="ct-toggle__thumb" />
+                  </span>
+                  <span>{settings.vibrationEnabled ? 'Enabled' : 'Disabled'}</span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Generative Music */}
-          <div className="ct-field">
-            <label className="ct-field__label" htmlFor="set-music">
-              <Music size={15} className="inline mr-1 text-purple-400" />
-              Generative Cyber Ambient Music
-            </label>
-            <p className="ct-field__help">
-              Continuous analog synth pad chords synthesized in real-time by the Web Audio API.
-            </p>
-            <div className="ct-field__row">
-              <button
-                type="button"
-                className={`ct-toggle ${settings.musicEnabled ? 'ct-toggle--on' : ''}`}
-                onClick={handleToggleMusic}
-                aria-pressed={settings.musicEnabled}
-              >
-                <span className="ct-toggle__track">
-                  <span className="ct-toggle__thumb" />
-                </span>
-                <span>{settings.musicEnabled ? 'ENABLED' : 'MUTED'}</span>
-              </button>
-              <input
-                id="set-music"
-                className="ct-slider"
-                type="range"
-                min={0}
-                max={100}
-                disabled={!settings.musicEnabled}
-                value={Math.round(settings.musicVolume * 100)}
-                onChange={(e) => handleMusicChange(Number(e.target.value) / 100)}
-              />
-              <output className="ct-readout">{formatPercent(settings.musicVolume)}</output>
+          {/* Section: Display */}
+          <div className="pt-4 border-t border-[var(--ct-line-strong)] mb-6">
+            <h2 className="text-xs font-bold text-slate-300 font-mono tracking-wider uppercase mb-3 flex items-center gap-2">
+              <Tv size={14} className="text-cyan-400" />
+              <span>Display Preferences</span>
+            </h2>
+
+            <div className="ct-field">
+              <label className="ct-field__label">CRT Scanline Effect</label>
+              <p className="ct-field__help">Subtle phosphor monitor overlay effect.</p>
+              <div className="ct-field__row">
+                <button
+                  type="button"
+                  className={`ct-toggle ${settings.crtScanlines ? 'ct-toggle--on' : ''}`}
+                  onClick={handleToggleCrt}
+                  aria-pressed={settings.crtScanlines}
+                >
+                  <span className="ct-toggle__track">
+                    <span className="ct-toggle__thumb" />
+                  </span>
+                  <span>{settings.crtScanlines ? 'Enabled' : 'Disabled'}</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Haptic Vibration */}
-          <div className="ct-field">
-            <label className="ct-field__label">
-              <Vibrate size={15} className="inline mr-1 text-yellow-400" />
-              Haptic Vibration Feedback
-            </label>
-            <p className="ct-field__help">
-              Sends haptic pulses during meltdowns, invoices, and node deletions on supported devices.
-            </p>
-            <div className="ct-field__row">
-              <button
-                type="button"
-                className={`ct-toggle ${settings.vibrationEnabled ? 'ct-toggle--on' : ''}`}
-                onClick={handleToggleVibration}
-              >
-                <span className="ct-toggle__track">
-                  <span className="ct-toggle__thumb" />
-                </span>
-                <span>{settings.vibrationEnabled ? 'ENABLED' : 'DISABLED'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* CRT Shaders */}
-          <div className="ct-field">
-            <label className="ct-field__label">
-              <Tv size={15} className="inline mr-1 text-cyan-400" />
-              Retro CRT Scanlines Overlay
-            </label>
-            <p className="ct-field__help">
-              Renders hardware monitor phosphor scanline artifacts and subtle chromatic vignette.
-            </p>
-            <div className="ct-field__row">
-              <button
-                type="button"
-                className={`ct-toggle ${settings.crtScanlines ? 'ct-toggle--on' : ''}`}
-                onClick={handleToggleCrt}
-              >
-                <span className="ct-toggle__track">
-                  <span className="ct-toggle__thumb" />
-                </span>
-                <span>{settings.crtScanlines ? 'ENABLED' : 'DISABLED'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* ================================================== */}
-          {/* ACCESSIBILITY & LOW VISION PREFERENCES */}
-          {/* ================================================== */}
-          <div className="pt-4 border-t border-[var(--ct-line-strong)]">
-            <h2 className="text-sm font-bold text-cyan-300 font-mono tracking-wide uppercase flex items-center gap-2 mb-4">
-              <Eye size={16} />
-              <span>Accessibility & Low-Vision Features</span>
+          {/* Section: Accessibility */}
+          <div className="pt-4 border-t border-[var(--ct-line-strong)] mb-6">
+            <h2 className="text-xs font-bold text-slate-300 font-mono tracking-wider uppercase mb-3 flex items-center gap-2">
+              <Eye size={14} className="text-cyan-400" />
+              <span>Accessibility & Assistive Features</span>
             </h2>
 
             {/* High Contrast Mode */}
             <div className="ct-field">
-              <label className="ct-field__label">
-                <Sparkles size={15} className="inline mr-1 text-cyan-300" />
-                High-Contrast Mode (WCAG AAA)
-              </label>
+              <label className="ct-field__label">High-Contrast Theme</label>
               <p className="ct-field__help">
-                Applies maximum contrast (solid pure black, pure white text, bright neon cyan/yellow badges, bold 2.5px borders, and disables scanline shaders).
+                WCAG AAA compliance with high text contrast, solid borders, and disabled visual filters.
               </p>
               <div className="ct-field__row">
                 <button
@@ -346,20 +283,15 @@ export const SettingsScreen: React.FC = () => {
                   <span className="ct-toggle__track">
                     <span className="ct-toggle__thumb" />
                   </span>
-                  <span>{settings.highContrast ? 'HIGH CONTRAST ON' : 'STANDARD DARK'}</span>
+                  <span>{settings.highContrast ? 'High Contrast On' : 'Standard Theme'}</span>
                 </button>
               </div>
             </div>
 
             {/* Large Text Mode */}
             <div className="ct-field">
-              <label className="ct-field__label">
-                <Type size={15} className="inline mr-1 text-purple-300" />
-                Large Text & Enlarged Hit Targets
-              </label>
-              <p className="ct-field__help">
-                Scales typographic hierarchy by 25–35% and increases button heights to minimum 48px for easier reading and interaction.
-              </p>
+              <label className="ct-field__label">Large Text & Enlarged Controls</label>
+              <p className="ct-field__help">Increases typography size and enlarges click targets to minimum 48px.</p>
               <div className="ct-field__row">
                 <button
                   type="button"
@@ -370,20 +302,15 @@ export const SettingsScreen: React.FC = () => {
                   <span className="ct-toggle__track">
                     <span className="ct-toggle__thumb" />
                   </span>
-                  <span>{settings.largeText ? 'LARGE TEXT ON' : 'STANDARD SIZE'}</span>
+                  <span>{settings.largeText ? 'Large Text On' : 'Standard Size'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Live Screen Reader Announcements */}
+            {/* Screen Reader Live Alerts */}
             <div className="ct-field">
-              <label className="ct-field__label">
-                <Megaphone size={15} className="inline mr-1 text-green-300" />
-                Screen Reader Live Alerts (ARIA Live Regions)
-              </label>
-              <p className="ct-field__help">
-                Emits ARIA polite and assertive telemetry updates when meltdowns occur, invoices arrive, incidents trigger, or nodes are selected.
-              </p>
+              <label className="ct-field__label">Screen Reader Live Updates (ARIA)</label>
+              <p className="ct-field__help">Emits polite live announcements for status updates, invoices, and outages.</p>
               <div className="ct-field__row">
                 <button
                   type="button"
@@ -394,20 +321,15 @@ export const SettingsScreen: React.FC = () => {
                   <span className="ct-toggle__track">
                     <span className="ct-toggle__thumb" />
                   </span>
-                  <span>{settings.screenReaderAnnouncements ? 'ANNOUNCEMENTS ACTIVE' : 'MUTED'}</span>
+                  <span>{settings.screenReaderAnnouncements ? 'Active' : 'Muted'}</span>
                 </button>
               </div>
             </div>
 
             {/* Text-to-Speech Spoken Telemetry */}
             <div className="ct-field">
-              <label className="ct-field__label">
-                <Volume2 size={15} className="inline mr-1 text-yellow-300" />
-                Spoken Voice Telemetry (Web Speech API)
-              </label>
-              <p className="ct-field__help">
-                Audibly speaks cluster emergencies, bill due dates, and server selections through your browser's speech synthesizer.
-              </p>
+              <label className="ct-field__label">Voice Readout (Browser Speech)</label>
+              <p className="ct-field__help">Audibly announces critical incidents and billing deadlines.</p>
               <div className="ct-field__row flex-wrap gap-2">
                 <button
                   type="button"
@@ -418,29 +340,15 @@ export const SettingsScreen: React.FC = () => {
                   <span className="ct-toggle__track">
                     <span className="ct-toggle__thumb" />
                   </span>
-                  <span>{settings.speechSynthesisEnabled ? 'VOICE READOUT ON' : 'OFF'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="ct-btn ct-btn--sm"
-                  onClick={handleTestSpeech}
-                >
-                  <Play size={12} />
-                  <span>Test Voice Announcement</span>
+                  <span>{settings.speechSynthesisEnabled ? 'Voice Readout On' : 'Off'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Auditory Earcon Beacons */}
+            {/* Audio Health Beacons */}
             <div className="ct-field">
-              <label className="ct-field__label">
-                <BellRing size={15} className="inline mr-1 text-cyan-300" />
-                Node Earcon Beacons (Auditory Health Cues)
-              </label>
-              <p className="ct-field__help">
-                Synthesizes distinct procedural audio cues when selecting nodes: pure chime for nominal, dissonant warble for high load, downward sweep for critical/meltdown.
-              </p>
+              <label className="ct-field__label">Selection Audio Cues</label>
+              <p className="ct-field__help">Plays distinct audio earcons when selecting nodes based on their load health.</p>
               <div className="ct-field__row">
                 <button
                   type="button"
@@ -451,49 +359,51 @@ export const SettingsScreen: React.FC = () => {
                   <span className="ct-toggle__track">
                     <span className="ct-toggle__thumb" />
                   </span>
-                  <span>{settings.soundBeaconOnSelect ? 'BEACONS ACTIVE' : 'DISABLED'}</span>
+                  <span>{settings.soundBeaconOnSelect ? 'Active' : 'Disabled'}</span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Danger Zone: Reset Data */}
-          <div className="ct-field">
-            <label className="ct-field__label text-red-400">
-              <Trash2 size={15} className="inline mr-1" />
-              Reset All Saved Data
-            </label>
-            <p className="ct-field__help">
-              Permanently clears the saved cluster slot, high scores, and audio preferences. This cannot be undone.
-            </p>
-            <div className="ct-field__row">
-              {resetArm ? (
-                <>
+          {/* Section: Storage */}
+          <div className="pt-4 border-t border-[var(--ct-line-strong)]">
+            <h2 className="text-xs font-bold text-red-400 font-mono tracking-wider uppercase mb-3 flex items-center gap-2">
+              <Trash2 size={14} />
+              <span>Storage & Saved Game</span>
+            </h2>
+
+            <div className="ct-field">
+              <label className="ct-field__label text-red-400">Clear Local Storage</label>
+              <p className="ct-field__help">Deletes saved cluster, high scores, and local preferences.</p>
+              <div className="ct-field__row">
+                {resetArm ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="ct-btn ct-btn--danger"
+                      onClick={handleResetData}
+                    >
+                      Confirm Delete
+                    </button>
+                    <button
+                      type="button"
+                      className="ct-btn"
+                      onClick={() => setResetArm(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
                     className="ct-btn ct-btn--danger"
-                    onClick={handleResetData}
+                    onClick={() => setResetArm(true)}
                   >
-                    Confirm: Purge All Storage
+                    <RotateCcw size={14} />
+                    <span>Reset Data</span>
                   </button>
-                  <button
-                    type="button"
-                    className="ct-btn"
-                    onClick={() => setResetArm(false)}
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="ct-btn ct-btn--danger"
-                  onClick={() => setResetArm(true)}
-                >
-                  <RotateCcw size={14} />
-                  <span>Reset All Data</span>
-                </button>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -14,6 +14,11 @@ import {
   NODE_TEMPLATES,
   INITIAL_START_CASH,
 } from '../constants/gameConfig';
+import {
+  createIncidentInstance,
+  tickIncidentGenerator,
+} from './incidentGenerator';
+import { audio } from '../audio/proceduralAudio';
 
 let idCounter = 0;
 export function generateId(prefix: string): string {
@@ -130,6 +135,10 @@ export function createInitialSimulation(difficulty: GameDifficulty = 'normal'): 
     gameOverReason: null,
     meltdownCount: 0,
     peakServedRps: 0,
+    chaosMode: false,
+    chaosIntervalSec: 75,
+    nextChaosSec: 75,
+    incidentHistory: [],
   };
 }
 
@@ -290,20 +299,26 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
   const newElapsedMs = sim.elapsedMs + dt * 1000;
   const elapsedSec = newElapsedMs / 1000;
 
-  // Active incident flags
-  const activeIncidents = sim.incidentOrder
-    .map((id) => sim.incidents[id])
-    .filter((inc) => !!inc);
+  // 1. Tick Incident Generator for active incidents and brownout states
+  const {
+    updatedIncidents,
+    updatedIncidentOrder,
+    newResolvedHistory,
+    powerSparkTriggered,
+    effectiveTrafficMultiplier,
+  } = tickIncidentGenerator(sim, dt, generateId);
 
-  const hasDDoS = activeIncidents.some((inc) => inc.kind === 'ddos');
-  const hasSpike = activeIncidents.some((inc) => inc.kind === 'traffic_spike');
-  const hasStorageThreshold = activeIncidents.some((inc) => inc.kind === 'storage_threshold');
+  if (powerSparkTriggered) {
+    audio.playPowerSpark();
+  }
 
   // Clone nodes and edges
   const newNodes: Record<string, ClusterNode> = {};
   for (const id of sim.nodeOrder) {
     const node = sim.nodes[id];
-    if (node) newNodes[id] = { ...node };
+    if (node) {
+      newNodes[id] = { ...node, powerFluctuating: false };
+    }
   }
 
   const newEdges: Record<string, ClusterEdge> = {};
@@ -312,15 +327,56 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
     if (edge) newEdges[id] = { ...edge };
   }
 
-  // Calculate inbound target traffic
+  // Apply Power Fluctuation intermittent brownouts and Memory Leaks
+  for (const inc of Object.values(updatedIncidents)) {
+    if (inc.kind === 'power_fluctuation') {
+      const targets =
+        inc.affectedNodeIds && inc.affectedNodeIds.length > 0
+          ? inc.affectedNodeIds
+          : inc.nodeId
+          ? [inc.nodeId]
+          : [];
+      for (const targetId of targets) {
+        const victim = newNodes[targetId];
+        if (victim) {
+          victim.powerFluctuating = true;
+          if (inc.flappingState === 'offline') {
+            victim.status = 'offline';
+            victim.repairSeconds = Math.max(victim.repairSeconds, 0.5);
+          } else {
+            victim.status = 'warning';
+          }
+        }
+      }
+    } else if (inc.kind === 'memory_leak' && inc.nodeId) {
+      const leakNode = newNodes[inc.nodeId];
+      if (leakNode && leakNode.ramGb > 0) {
+        leakNode.ramUsedGb = clampVal(
+          leakNode.ramUsedGb + leakNode.ramGb * 0.08 * dt,
+          0,
+          leakNode.ramGb
+        );
+        if (leakNode.ramUsedGb >= leakNode.ramGb * 0.98 && leakNode.repairSeconds <= 0) {
+          leakNode.repairSeconds = 6;
+          leakNode.status = 'offline';
+          leakNode.ramUsedGb = leakNode.ramGb * 0.2;
+        }
+      }
+    }
+  }
+
+  // Calculate inbound target traffic (surged heavily during DDoS spike)
   const wave = trafficWave(elapsedSec);
   const cycleProgress = clampVal(1 - sim.economy.secondsToBill / BILLING_CYCLE_SECONDS, 0, 1);
   const diffMultiplier = sim.difficulty === 'easy' ? 0.35 : sim.difficulty === 'hard' ? 0.8 : 0.55;
   const growth = 1 + diffMultiplier * cycleProgress;
 
-  const baseTraffic = sim.economy.cycleBaseInboundRps > 0 ? sim.economy.cycleBaseInboundRps : Math.max(12, sim.inboundRps);
-  const incidentMultiplier = hasDDoS ? 1.6 : hasSpike ? 1.35 : 1.0;
-  const targetInbound = Math.max(8, baseTraffic * growth * incidentMultiplier + wave * baseTraffic * 0.2);
+  const baseTraffic =
+    sim.economy.cycleBaseInboundRps > 0 ? sim.economy.cycleBaseInboundRps : Math.max(12, sim.inboundRps);
+  const targetInbound = Math.max(
+    8,
+    baseTraffic * growth * effectiveTrafficMultiplier + wave * baseTraffic * 0.2
+  );
   const smoothedInbound = Math.max(8, lerp(sim.inboundRps, targetInbound, 0.4, dt));
 
   // Forward request allocation map
@@ -333,6 +389,7 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
   let totalServedRps = 0;
   let totalDroppedRps = 0;
   let newMeltdownEvents = 0;
+  const hasStorageThreshold = Object.values(updatedIncidents).some((inc) => inc.kind === 'storage_threshold');
 
   // Process nodes in topological order
   for (const nodeId of topoNodes) {
@@ -501,118 +558,90 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
     edge.latencyMs = Number.isFinite(edgeLatency) ? edgeLatency : Infinity;
   }
 
-  // Process and expire incidents
-  const newIncidents: Record<string, Incident> = {};
-  const newIncidentOrder: string[] = [];
+  // Process and expire incidents via incidentGenerator
+  const newIncidents: Record<string, Incident> = { ...updatedIncidents };
+  const newIncidentOrder: string[] = [...updatedIncidentOrder];
+  let nextChaosSec = sim.nextChaosSec ?? 75;
 
-  for (const incId of sim.incidentOrder) {
-    const inc = sim.incidents[incId];
-    if (!inc) continue;
-    const remaining = inc.secondsRemaining - dt;
-    if (remaining > 0) {
-      newIncidents[incId] = { ...inc, secondsRemaining: remaining };
-      newIncidentOrder.push(incId);
+  // 1. Chaos Mode: automated chaos monkey testing
+  if (sim.chaosMode) {
+    nextChaosSec -= dt;
+    if (nextChaosSec <= 0 && newIncidentOrder.length === 0) {
+      nextChaosSec = sim.chaosIntervalSec || 75;
+      const chaosKinds: Incident['kind'][] = [
+        'power_fluctuation',
+        'ddos_spike',
+        'memory_leak',
+        'hardware_failure',
+        'traffic_spike',
+      ];
+      const pickedKind = chaosKinds[Math.floor(Math.random() * chaosKinds.length)];
+      const chaosInc = createIncidentInstance(
+        pickedKind,
+        { ...sim, nodes: newNodes },
+        undefined,
+        generateId
+      );
+      if (chaosInc) {
+        newIncidents[chaosInc.id] = chaosInc;
+        newIncidentOrder.push(chaosInc.id);
+        if (chaosInc.kind === 'ddos_spike') {
+          audio.playDdosAlarm();
+        } else if (chaosInc.kind === 'power_fluctuation') {
+          audio.playPowerSpark();
+        } else {
+          audio.playIncidentAlert();
+        }
+      }
     }
-  }
+  } else {
+    // 2. Standard scheduled incident generation (including Power Fluctuation and DDoS Spike)
+    const minTimeForIncidents = sim.difficulty === 'easy' ? 360 : sim.difficulty === 'hard' ? 180 : 240;
+    if (elapsedSec >= minTimeForIncidents && newIncidentOrder.length === 0) {
+      const cycleInterval = sim.difficulty === 'easy' ? 180 : sim.difficulty === 'hard' ? 120 : 150;
+      const prevBucket = Math.floor((sim.elapsedMs / 1000 - minTimeForIncidents) / cycleInterval);
+      const currBucket = Math.floor((newElapsedMs / 1000 - minTimeForIncidents) / cycleInterval);
 
-  // Trigger new random incidents if conditions are met
-  const minTimeForIncidents = sim.difficulty === 'easy' ? 360 : sim.difficulty === 'hard' ? 180 : 240;
-  if (elapsedSec >= minTimeForIncidents && newIncidentOrder.length === 0) {
-    const cycleInterval = sim.difficulty === 'easy' ? 180 : sim.difficulty === 'hard' ? 120 : 150;
-    const prevBucket = Math.floor((sim.elapsedMs / 1000 - minTimeForIncidents) / cycleInterval);
-    const currBucket = Math.floor((newElapsedMs / 1000 - minTimeForIncidents) / cycleInterval);
-
-    if (currBucket > prevBucket) {
-      const candidates: Array<{
-        kind: Incident['kind'];
-        nodeId: string | null;
-        title: string;
-        detail: string;
-        severity: Incident['severity'];
-        seconds: number;
-      }> = [];
-
-      // S3 full warning
-      const fullS3 = Object.values(newNodes).find(
-        (n) => n.kind === 'storage' && n.storageGb > 0 && n.storageUsedGb / n.storageGb >= 0.5
-      );
-      if (fullS3) {
-        candidates.push({
-          kind: 'storage_threshold',
-          nodeId: fullS3.id,
-          title: 'S3 Capacity Threshold',
-          detail: `${fullS3.name} is approaching 80% quota. Upgrade storage or risk write rejection.`,
-          severity: 'medium',
-          seconds: 25,
-        });
-      }
-
-      // DDoS attack on unshielded entry
-      const entryNode = Object.values(newNodes).find((n) => n.kind === 'entry');
-      if (entryNode && !entryNode.shielded) {
-        candidates.push({
-          kind: 'ddos',
-          nodeId: entryNode.id,
-          title: 'Layer-7 DDoS Attack',
-          detail: `${entryNode.name} is receiving an unauthorized flood of synthetic HTTP requests.`,
-          severity: 'high',
-          seconds: 22,
-        });
-      }
-
-      // Hardware failure on compute nodes
-      const computeNodes = Object.values(newNodes).filter(
-        (n) => (n.kind === 'server' || n.kind === 'database') && n.status === 'nominal'
-      );
-      if (computeNodes.length > 0) {
-        const victim = computeNodes[Math.floor(Math.random() * computeNodes.length)];
-        candidates.push({
-          kind: 'hardware_failure',
-          nodeId: victim.id,
-          title: 'Hardware Node Outage',
-          detail: `${victim.name} suffered kernel panic / hardware rack failure and requires maintenance.`,
-          severity: 'critical',
-          seconds: 16,
-        });
-      }
-
-      // Traffic Spike
-      candidates.push({
-        kind: 'traffic_spike',
-        nodeId: entryNode?.id ?? null,
-        title: 'Viral Demand Surge',
-        detail: 'Product featured on front page; inbound traffic surge incoming!',
-        severity: 'low',
-        seconds: 15,
-      });
-
-      if (candidates.length > 0) {
-        const picked = candidates[Math.floor(Math.random() * candidates.length)];
-        if (picked.kind === 'hardware_failure' && picked.nodeId) {
-          const failNode = newNodes[picked.nodeId];
-          if (failNode) {
-            failNode.repairSeconds = 15;
-            failNode.status = 'offline';
-            failNode.currentRps = 0;
+      if (currBucket > prevBucket) {
+        const candidates: Incident['kind'][] = [
+          'power_fluctuation',
+          'ddos_spike',
+          'hardware_failure',
+          'memory_leak',
+          'traffic_spike',
+          'storage_threshold',
+        ];
+        const pickedKind = candidates[Math.floor(Math.random() * candidates.length)];
+        const newInc = createIncidentInstance(
+          pickedKind,
+          { ...sim, nodes: newNodes },
+          undefined,
+          generateId
+        );
+        if (newInc) {
+          if (newInc.kind === 'hardware_failure' && newInc.nodeId) {
+            const failNode = newNodes[newInc.nodeId];
+            if (failNode) {
+              failNode.repairSeconds = 15;
+              failNode.status = 'offline';
+              failNode.currentRps = 0;
+            }
+          }
+          newIncidents[newInc.id] = newInc;
+          newIncidentOrder.push(newInc.id);
+          if (newInc.kind === 'ddos_spike') {
+            audio.playDdosAlarm();
+          } else if (newInc.kind === 'power_fluctuation') {
+            audio.playPowerSpark();
+          } else {
+            audio.playIncidentAlert();
           }
         }
-
-        const newInc: Incident = {
-          id: generateId('inc'),
-          kind: picked.kind,
-          nodeId: picked.nodeId,
-          title: picked.title,
-          detail: picked.detail,
-          startedAtMs: newElapsedMs,
-          secondsRemaining: picked.seconds,
-          severity: picked.severity,
-          acknowledged: false,
-        };
-        newIncidents[newInc.id] = newInc;
-        newIncidentOrder.push(newInc.id);
       }
     }
   }
+
+  const updatedHistory = [...(sim.incidentHistory || []), ...newResolvedHistory].slice(-30);
 
   // Financial calculations
   const totalHourlyCost = Object.values(newNodes).reduce(
@@ -666,6 +695,10 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
     gameOverReason,
     meltdownCount: sim.meltdownCount + newMeltdownEvents,
     peakServedRps: Math.max(sim.peakServedRps, totalServedRps),
+    chaosMode: sim.chaosMode ?? false,
+    chaosIntervalSec: sim.chaosIntervalSec ?? 75,
+    nextChaosSec,
+    incidentHistory: updatedHistory,
     economy: {
       ...sim.economy,
       cashUsd: newCash,

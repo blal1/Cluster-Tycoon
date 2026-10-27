@@ -72,10 +72,10 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ bill, cashUsd }) => 
 
         <p className="ct-invoice__lede">
           {declined
-            ? 'Payment was rejected due to insufficient account balance. The cloud provider has placed your account on hold.'
+            ? 'Payment was rejected due to insufficient funds. The provider has placed the cluster on hold.'
             : canAfford
-            ? 'The simulation is paused while this cloud infrastructure statement is settled. Settle the balance to resume cluster traffic.'
-            : 'Warning: Your cash on hand cannot cover this billing cycle. Settle or default to declare bankruptcy.'}
+            ? 'Simulation paused pending invoice settlement. Pay balance to continue traffic routing.'
+            : `Insufficient account balance. Available: ${formatCurrency(cashUsd)} / Due: ${formatCurrency(bill.totalUsd)}.`}
         </p>
 
         {/* Itemized Services Table */}
@@ -121,8 +121,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ bill, cashUsd }) => 
           <div className="ct-invoice__failure" role="alert">
             <AlertOctagon size={20} className="inline mr-2" />
             <span>
-              Payment of {formatCurrency(bill.totalUsd)} declined! Account is short by{' '}
-              {formatCurrency(shortfall)}. Every server and database node will be de-provisioned.
+              Invoice payment declined. Deficit: {formatCurrency(shortfall)}. Account suspended.
             </span>
           </div>
         )}
@@ -135,7 +134,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ bill, cashUsd }) => 
               className="ct-invoice__btn ct-invoice__btn--terminate"
               onClick={handleDefault}
             >
-              Terminate Cluster (Default)
+              Suspend Cluster (Default)
             </button>
           ) : (
             <>
@@ -145,14 +144,14 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ bill, cashUsd }) => 
                 onClick={handlePay}
               >
                 <CheckCircle2 size={16} className="inline mr-1" />
-                Pay {formatCurrency(bill.totalUsd)}
+                Pay Invoice ({formatCurrency(bill.totalUsd)})
               </button>
               <button
                 type="button"
                 className="ct-invoice__btn ct-invoice__btn--terminate"
                 onClick={handleDefault}
               >
-                Refuse Payment
+                Decline & Suspend
               </button>
             </>
           )}

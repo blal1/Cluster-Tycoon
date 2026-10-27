@@ -8,6 +8,7 @@ import { InvoiceModal } from './components/ui/InvoiceModal';
 import { CommandPalette } from './components/ui/CommandPalette';
 import { ShortcutOverlay } from './components/ui/ShortcutOverlay';
 import { ClusterMatrixModal } from './components/ui/ClusterMatrixModal';
+import { IncidentGeneratorModal } from './components/ui/IncidentGeneratorModal';
 import { LiveAnnouncer } from './components/ui/LiveAnnouncer';
 import { StatusBar } from './components/ui/StatusBar';
 import { MainMenu } from './components/screens/MainMenu';
@@ -23,6 +24,7 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [matrixOpen, setMatrixOpen] = useState(false);
+  const [incidentGenOpen, setIncidentGenOpen] = useState(false);
 
   // Hook simulation tick loop
   useSimulationRunner();
@@ -108,6 +110,13 @@ export default function App() {
       if (e.altKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
         setMatrixOpen((prev) => !prev);
+        return;
+      }
+
+      // Alt + I toggles Incident Generator & Chaos Console anywhere
+      if (e.altKey && (e.key === 'i' || e.key === 'I')) {
+        e.preventDefault();
+        setIncidentGenOpen((prev) => !prev);
         return;
       }
 
@@ -202,6 +211,7 @@ export default function App() {
             <TopBar
               onOpenShortcuts={() => setShortcutsOpen(true)}
               onOpenMatrix={() => setMatrixOpen(true)}
+              onOpenIncidentGen={() => setIncidentGenOpen(true)}
             />
             <div className="ct-game__canvas">
               <ClusterCanvas />
@@ -210,6 +220,7 @@ export default function App() {
             <StatusBar
               onOpenShortcuts={() => setShortcutsOpen(true)}
               onOpenMatrix={() => setMatrixOpen(true)}
+              onOpenIncidentGen={() => setIncidentGenOpen(true)}
             />
 
             {/* AWS Monthly Bill Modal */}
@@ -224,12 +235,19 @@ export default function App() {
             <CommandPalette
               open={paletteOpen}
               onClose={() => setPaletteOpen(false)}
+              onOpenIncidentGen={() => setIncidentGenOpen(true)}
             />
 
             {/* Screen Reader & Keyboard Accessible Cluster Matrix Modal (Alt + A) */}
             <ClusterMatrixModal
               open={matrixOpen}
               onClose={() => setMatrixOpen(false)}
+            />
+
+            {/* Chaos Engineering & Incident Generator Modal (Alt + I) */}
+            <IncidentGeneratorModal
+              open={incidentGenOpen}
+              onClose={() => setIncidentGenOpen(false)}
             />
           </div>
         )}

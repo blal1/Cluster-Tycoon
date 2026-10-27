@@ -6,7 +6,15 @@ export type NodeKind = 'entry' | 'loadbalancer' | 'server' | 'database' | 'stora
 
 export type NodeStatus = 'nominal' | 'warning' | 'critical' | 'offline' | 'meltdown';
 
-export type IncidentKind = 'ddos' | 'hardware_failure' | 'storage_threshold' | 'traffic_spike' | 'cache_stampede';
+export type IncidentKind =
+  | 'power_fluctuation'
+  | 'ddos_spike'
+  | 'ddos'
+  | 'hardware_failure'
+  | 'storage_threshold'
+  | 'traffic_spike'
+  | 'cache_stampede'
+  | 'memory_leak';
 
 export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -60,6 +68,7 @@ export interface ClusterNode {
   meltdownSeconds: number;
   shielded: boolean;
   autoReboot: boolean;
+  powerFluctuating?: boolean;
   createdAtMs: number;
 }
 
@@ -72,16 +81,33 @@ export interface ClusterEdge {
   latencyMs: number;
 }
 
+export interface IncidentHistoryEntry {
+  id: string;
+  kind: IncidentKind;
+  title: string;
+  resolvedAtMs: number;
+  durationSec: number;
+  mitigationUsed: string;
+  severity: IncidentSeverity;
+}
+
 export interface Incident {
   id: string;
   kind: IncidentKind;
   nodeId: string | null;
+  affectedNodeIds?: string[];
   title: string;
   detail: string;
   startedAtMs: number;
   secondsRemaining: number;
+  totalDurationSec: number;
   severity: IncidentSeverity;
   acknowledged: boolean;
+  trafficMultiplier?: number;
+  flappingState?: 'offline' | 'recovering' | 'nominal';
+  flappingTimerSec?: number;
+  mitigationAction?: string;
+  mitigationCostUsd?: number;
 }
 
 export interface BillLineItem {
@@ -145,6 +171,10 @@ export interface SimulationState {
   gameOverReason: string | null;
   meltdownCount: number;
   peakServedRps: number;
+  chaosMode: boolean;
+  chaosIntervalSec: number;
+  nextChaosSec: number;
+  incidentHistory: IncidentHistoryEntry[];
 }
 
 export interface GameSettings {
@@ -196,6 +226,10 @@ export type GameAction =
   | { type: 'togglePause' }
   | { type: 'setCamera'; camera: Partial<CameraState> }
   | { type: 'dismissIncident'; incidentId: string }
+  | { type: 'triggerIncident'; kind: IncidentKind; targetNodeId?: string }
+  | { type: 'mitigateIncident'; incidentId: string; mitigationType?: string }
+  | { type: 'toggleChaosMode'; enabled?: boolean }
+  | { type: 'setChaosInterval'; seconds: number }
   | { type: 'payBill'; billId: string }
   | { type: 'defaultBill'; billId: string }
   | { type: 'updateSettings'; patch: Partial<GameSettings> }

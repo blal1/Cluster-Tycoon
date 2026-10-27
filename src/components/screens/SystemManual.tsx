@@ -1,7 +1,18 @@
 import React from 'react';
 import { useAppStore, dispatch } from '../../store/gameStore';
 import { audio } from '../../audio/proceduralAudio';
-import { ArrowLeft, BookOpen, Cpu, Shield, Zap, DollarSign, Layers } from 'lucide-react';
+import {
+  ArrowLeft,
+  BookOpen,
+  Cpu,
+  Shield,
+  Zap,
+  DollarSign,
+  Layers,
+  AlertTriangle,
+  Server,
+  Keyboard,
+} from 'lucide-react';
 
 export const SystemManual: React.FC = () => {
   const returnScreen = useAppStore((s) => s.returnScreen);
@@ -18,11 +29,10 @@ export const SystemManual: React.FC = () => {
         <div className="ct-doc__head">
           <div>
             <h1 className="ct-doc__title" id="manual-title">
-              <BookOpen size={24} className="inline mr-2 text-cyan-400" />
-              Infrastructure Operations Manual
+              Operations & Architecture Guide
             </h1>
             <p className="ct-doc__subtitle">
-              SRE & Cloud Administrator Field Protocol. Required reading before managing production.
+              Reference guide for traffic routing, hardware capacity, financial solvency, and disaster mitigation.
             </p>
           </div>
           <button type="button" className="ct-btn" onClick={handleBack}>
@@ -36,107 +46,161 @@ export const SystemManual: React.FC = () => {
           {/* Section 1: Overview */}
           <section className="ct-section">
             <h2 className="ct-section__title">
-              <Zap size={15} className="inline mr-1" />
-              1. System Architecture & Traffic Flow
+              <Zap size={15} className="inline mr-1 text-cyan-400" />
+              1. Traffic Routing & Flow
             </h2>
             <p className="ct-section__body">
-              Your service accepts live HTTP requests from the worldwide web. Traffic enters at an
-              <strong> Entry Point (Ingress)</strong> and travels along connected wires to downstream
-              infrastructure.
+              Traffic enters through the <strong>Entry Point (Ingress)</strong> and flows downstream along connected wire links.
             </p>
             <p className="ct-section__body">
-              To handle high traffic, wire the Entry Point to an <strong>Application Load Balancer (ALB)</strong>,
-              which distributes requests equally among multiple downstream <strong>App Servers</strong>.
-              Servers forward durable state to <strong>Managed Databases (RDS)</strong> and static media
-              to <strong>Object Storage (S3)</strong>. Adding an <strong>In-Memory Cache (Redis)</strong> absorbs
-              frequent read traffic and shields your database.
+              To balance workload, connect the Entry Point to an <strong>Application Load Balancer (ALB)</strong>,
+              which distributes incoming requests evenly across connected <strong>App Servers</strong>.
+              Servers forward state queries to <strong>Managed Databases (RDS)</strong> and static assets to <strong>Object Storage (S3)</strong>.
+              Placing an <strong>In-Memory Cache (Redis)</strong> in front of databases reduces database query pressure by up to 60%.
             </p>
           </section>
 
           {/* Section 2: Node Classes */}
           <section className="ct-section">
             <h2 className="ct-section__title">
-              <Layers size={15} className="inline mr-1" />
-              2. Infrastructure Modules
+              <Layers size={15} className="inline mr-1 text-cyan-400" />
+              2. Infrastructure Components
             </h2>
-            <ul className="ct-list">
-              <li>
-                <span className="ct-mono">ENTRY</span> <strong>Entry Point:</strong> Generates internet demand based on the diurnal traffic curve. Costs $0/hr and cannot be upgraded.
-              </li>
-              <li>
-                <span className="ct-mono">LB</span> <strong>Load Balancer:</strong> Distributes inbound request volume evenly across all connected downstream nodes. Saturated load balancers become traffic bottlenecks.
-              </li>
-              <li>
-                <span className="ct-mono">SRV</span> <strong>App Server (EC2):</strong> Executes application logic. Pushing CPU beyond 100% triggers a thermal meltdown!
-              </li>
-              <li>
-                <span className="ct-mono">MEM</span> <strong>In-Memory Cache (Redis):</strong> Blazing fast in-memory key-value store. Absorbs repetitive reads and reduces database load.
-              </li>
-              <li>
-                <span className="ct-mono">DB</span> <strong>Managed Database:</strong> Persistent relational storage. Requires adequate RAM headroom. Heavy write volume continuously grows disk utilization.
-              </li>
-              <li>
-                <span className="ct-mono">S3</span> <strong>Object Storage:</strong> Durable bucket for media files and snapshots. Billed per GB stored per billing cycle.
-              </li>
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse border border-[var(--ct-line)] mb-2">
+                <thead>
+                  <tr className="bg-[var(--ct-surface-2)] text-[var(--ct-text-strong)] border-b border-[var(--ct-line)]">
+                    <th className="p-2 font-mono">Type</th>
+                    <th className="p-2">Role</th>
+                    <th className="p-2">Hourly Cost</th>
+                    <th className="p-2">Base Capacity</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--ct-line)]">
+                  <tr>
+                    <td className="p-2 font-mono text-cyan-400">ENTRY</td>
+                    <td className="p-2">Public ingress point generating inbound user demand.</td>
+                    <td className="p-2">$0.00/hr</td>
+                    <td className="p-2">Infinite</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-mono text-purple-400">LB</td>
+                    <td className="p-2">Load balancer distributing requests to downstream targets.</td>
+                    <td className="p-2">$0.92/hr</td>
+                    <td className="p-2">900 RPS</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-mono text-green-400">SRV</td>
+                    <td className="p-2">App compute worker. CPU overload causes thermal shutdown.</td>
+                    <td className="p-2">$0.41/hr</td>
+                    <td className="p-2">220 RPS</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-mono text-yellow-400">MEM</td>
+                    <td className="p-2">In-memory Redis cache absorbing repetitive database reads.</td>
+                    <td className="p-2">$0.35/hr</td>
+                    <td className="p-2">800 RPS</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-mono text-amber-400">DB</td>
+                    <td className="p-2">Durable SQL database with persistent disk storage.</td>
+                    <td className="p-2">$1.35/hr</td>
+                    <td className="p-2">340 RPS</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 font-mono text-violet-400">S3</td>
+                    <td className="p-2">Static object bucket. Billed by stored gigabytes.</td>
+                    <td className="p-2">$0.021/hr</td>
+                    <td className="p-2">1,200 RPS</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </section>
 
           {/* Section 3: Scaling Strategies */}
           <section className="ct-section">
             <h2 className="ct-section__title">
-              <Cpu size={15} className="inline mr-1" />
-              3. Horizontal vs Vertical Scaling
+              <Cpu size={15} className="inline mr-1 text-cyan-400" />
+              3. Capacity & Scaling
             </h2>
             <p className="ct-section__body">
-              <strong>Horizontal Scaling (Scale Out):</strong> Deploying additional server nodes behind a load balancer. Select any server or load balancer and click <em>"Add Server Behind"</em> to immediately instantiate and link another worker.
+              <strong>Horizontal Scaling (Scale Out):</strong> Adding server instances behind a load balancer.
+              Select any load balancer or server and click <em>"Add Server Behind"</em> to place and wire a new worker.
             </p>
             <p className="ct-section__body">
-              <strong>Vertical Scaling (Scale Up):</strong> Upgrading an existing instance with higher core counts, larger RAM, and greater RPS capacity. Click <em>"Scale Up"</em> in the Node Inspector to boost hardware specifications without rewiring.
+              <strong>Vertical Scaling (Scale Up):</strong> Upgrading CPU cores, RAM, and disk on an existing node.
+              Open the Node Inspector on the right panel and upgrade components to increase individual throughput.
             </p>
           </section>
 
           {/* Section 4: Incident Response */}
           <section className="ct-section">
             <h2 className="ct-section__title">
-              <Shield size={15} className="inline mr-1" />
-              4. Incidents & Reliability Engineering
+              <AlertTriangle size={15} className="inline mr-1 text-cyan-400" />
+              4. Incidents & Reliability
             </h2>
             <p className="ct-section__body">
-              <strong>Thermal Meltdowns:</strong> When a node's CPU utilization hits 100%, its thermal threshold is breached. The node enters a 20-second emergency cooldown phase where it sheds all traffic (dropping requests). Ensure adequate capacity to prevent cascade failures.
+              <strong>Thermal Meltdowns:</strong> When an instance exceeds 100% CPU utilization, it enters a 20-second emergency cooling cycle, shedding traffic and dropping requests. Scale up capacity or add workers to prevent saturation.
             </p>
             <p className="ct-section__body">
-              <strong>Layer-7 DDoS:</strong> Malicious botnets will periodically flood your ingress. Enable <em>DDoS Shield</em> on the Entry Point to filter hostile traffic.
+              <strong>Power Fluctuations:</strong> Datacenter PDU voltage drops cause affected nodes to cycle offline intermittently every 2–3s. Mitigate via the Incident Console (<kbd>Alt + I</kbd>) by deploying a redundant UPS power rail.
             </p>
             <p className="ct-section__body">
-              <strong>Storage Threshold:</strong> S3 buckets generate warnings at 80% quota and drop writes at 95%. Scale up storage capacity before the quota is exhausted.
+              <strong>DDoS Spikes:</strong> Volumetric surges spike inbound traffic up to 4.5x. Enable AWS Shield on the Entry Point or execute emergency scrubbing to protect downstream instances.
+            </p>
+            <p className="ct-section__body">
+              <strong>Memory Leaks:</strong> Unbounded worker allocations gradually consume RAM. Recycle processes before out-of-memory errors occur.
             </p>
           </section>
 
           {/* Section 5: The Billing Cycle */}
           <section className="ct-section">
             <h2 className="ct-section__title">
-              <DollarSign size={15} className="inline mr-1" />
-              5. Cloud Billing & Solvency
+              <DollarSign size={15} className="inline mr-1 text-cyan-400" />
+              5. Financial Model & Solvency
             </h2>
             <p className="ct-section__body">
-              Every 180 seconds, Amazon Web Services issues an itemized infrastructure invoice for your compute hours, load balancers, database IOPS, and storage retention.
+              Revenue is earned only on <strong>successfully served requests</strong> ($0.0042 per request).
+              Dropped requests yield zero revenue and risk customer churn.
             </p>
             <p className="ct-section__body">
-              You earn revenue only on <strong>successfully served requests</strong> ($0.0042 per RPS). Dropped requests generate zero revenue. If your cash on hand is insufficient to settle the invoice, your cloud provider account will be suspended and the cluster terminated!
+              Every 180 seconds, cloud infrastructure usage is billed. If available cash is insufficient to cover the statement balance, the account is suspended and the simulation concludes.
             </p>
           </section>
 
           {/* Section 6: Shortcuts */}
           <section className="ct-section">
-            <h2 className="ct-section__title">6. Operator Shortcuts & Controls</h2>
-            <ul className="ct-list">
-              <li><kbd className="ct-mono">Space</kbd> or <kbd className="ct-mono">/</kbd>: Opens the quick Command Palette.</li>
-              <li><kbd className="ct-mono">F</kbd>: Automatically frame and fit all nodes into viewport.</li>
-              <li><kbd className="ct-mono">Alt + Click</kbd> or <kbd className="ct-mono">Shift + Click</kbd> on a wire: Sever/disconnect connection link.</li>
-              <li><kbd className="ct-mono">Delete</kbd> or <kbd className="ct-mono">Backspace</kbd>: Decommission selected node.</li>
-              <li><kbd className="ct-mono">Arrow Keys</kbd>: Move selection between adjacent nodes.</li>
-              <li><kbd className="ct-mono">Shift + Arrows</kbd>: Nudge selected node position by 40px grid increments.</li>
-            </ul>
+            <h2 className="ct-section__title">
+              <Keyboard size={15} className="inline mr-1 text-cyan-400" />
+              6. Key Shortcuts
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="p-2 bg-[var(--ct-surface-2)] rounded border border-[var(--ct-line)]">
+                <kbd>Space</kbd> or <kbd>/</kbd> — Command Palette
+              </div>
+              <div className="p-2 bg-[var(--ct-surface-2)] rounded border border-[var(--ct-line)]">
+                <kbd>Alt + I</kbd> — Chaos & Incident Console
+              </div>
+              <div className="p-2 bg-[var(--ct-surface-2)] rounded border border-[var(--ct-line)]">
+                <kbd>Alt + A</kbd> — Accessible Cluster Matrix
+              </div>
+              <div className="p-2 bg-[var(--ct-surface-2)] rounded border border-[var(--ct-line)]">
+                <kbd>F</kbd> — Frame & Center Canvas
+              </div>
+              <div className="p-2 bg-[var(--ct-surface-2)] rounded border border-[var(--ct-line)]">
+                <kbd>P</kbd> — Pause / Resume Simulation
+              </div>
+              <div className="p-2 bg-[var(--ct-surface-2)] rounded border border-[var(--ct-line)]">
+                <kbd>1</kbd>, <kbd>2</kbd>, <kbd>4</kbd> — Simulation Speed
+              </div>
+              <div className="p-2 bg-[var(--ct-surface-2)] rounded border border-[var(--ct-line)]">
+                <kbd>Alt + Click</kbd> on link — Cut wire link
+              </div>
+              <div className="p-2 bg-[var(--ct-surface-2)] rounded border border-[var(--ct-line)]">
+                <kbd>?</kbd> — Full Hotkeys Reference
+              </div>
+            </div>
           </section>
         </div>
       </article>

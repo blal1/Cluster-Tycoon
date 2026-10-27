@@ -245,16 +245,16 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
         {/* Meltdown Countdown Warning */}
         {node.meltdownSeconds > 0 && (
           <div className="ct-alert ct-alert--danger">
-            <strong>THERMAL MELTDOWN ACTIVE!</strong>
-            <p>CPU cores overheating. Auto-cooling recovers in {node.meltdownSeconds.toFixed(1)}s.</p>
+            <strong>THERMAL THROTTLING ACTIVE</strong>
+            <p>CPU cores exceeded safe temperature threshold. Recovery in {node.meltdownSeconds.toFixed(1)}s.</p>
           </div>
         )}
 
         {/* Hardware Repair Countdown */}
         {node.repairSeconds > 0 && (
           <div className="ct-alert ct-alert--warning">
-            <strong>HARDWARE MAINTENANCE</strong>
-            <p>Field technician repairing unit. Restoring online in {node.repairSeconds.toFixed(1)}s.</p>
+            <strong>MAINTENANCE IN PROGRESS</strong>
+            <p>Node undergoing automated hardware recovery. Online in {node.repairSeconds.toFixed(1)}s.</p>
           </div>
         )}
       </div>
@@ -263,7 +263,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
       {tmpl.maxUpgrades > 0 && (
         <div className="ct-upgrade-bay">
           <div className="ct-upgrade-bay__header">
-            <span className="ct-upgrade-bay__tag">HARDWARE UPGRADE BAY</span>
+            <span className="ct-upgrade-bay__tag">HARDWARE CONFIGURATION</span>
             <span className="ct-upgrade-bay__tier-dots">
               {Array.from({ length: MAX_HARDWARE_TIER }, (_, i) => (
                 <span
@@ -280,7 +280,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
               <div className="flex items-center justify-between">
                 <span className="ct-upgrade-card__title">
                   <Cpu size={14} className="inline mr-1.5 text-cyan-400" />
-                  CPU Processor
+                  Compute Unit (CPU)
                 </span>
                 <span className="ct-badge ct-badge--cpu" style={{ color: cpuConfig.color }}>
                   {cpuConfig.badge}
@@ -290,7 +290,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
               <div className="ct-upgrade-card__benefit">
                 {cpuTier < MAX_HARDWARE_TIER
                   ? `Next Tier: +4 Cores, +35% RPS Capacity`
-                  : `Quantum Silicon Maxed (${node.cpuCores} Cores)`}
+                  : `Maximum Tier Reached (${node.cpuCores} Cores)`}
               </div>
             </div>
 
@@ -300,13 +300,13 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
                 className="ct-btn ct-btn--primary ct-btn--block"
                 disabled={!canUpgradeCpu}
                 onClick={handleUpgradeCpu}
-                title={cashUsd < cpuCost ? 'Insufficient funds' : 'Replace outdated processor'}
+                title={cashUsd < cpuCost ? 'Insufficient funds' : 'Upgrade processor tier'}
               >
                 <ArrowUpCircle size={15} />
-                <span>Replace CPU ({formatCurrency(cpuCost)})</span>
+                <span>Upgrade CPU ({formatCurrency(cpuCost)})</span>
               </button>
             ) : (
-              <div className="ct-upgrade-card__max">MAX SILICON LEVEL REACHED</div>
+              <div className="ct-upgrade-card__max">MAX CPU TIER REACHED</div>
             )}
           </div>
 
@@ -317,7 +317,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
                 <div className="flex items-center justify-between">
                   <span className="ct-upgrade-card__title">
                     <Layers size={14} className="inline mr-1.5 text-green-400" />
-                    Memory Bank
+                    Memory Allocation (RAM)
                   </span>
                   <span className="ct-badge ct-badge--ram" style={{ color: ramConfig.color }}>
                     {ramConfig.slots}x SLOTS
@@ -327,7 +327,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
                 <div className="ct-upgrade-card__benefit">
                   {ramTier < MAX_HARDWARE_TIER
                     ? `Next Expansion: +${formatGb(node.ramGb)} RAM (Doubles capacity)`
-                    : `ECC Enterprise Maxed (${formatGb(node.ramGb)})`}
+                    : `Maximum Memory Reached (${formatGb(node.ramGb)})`}
                 </div>
               </div>
 
@@ -337,13 +337,13 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
                   className="ct-btn ct-btn--primary ct-btn--block"
                   disabled={!canUpgradeRam}
                   onClick={handleUpgradeRam}
-                  title={cashUsd < ramCost ? 'Insufficient funds' : 'Expand physical RAM modules'}
+                  title={cashUsd < ramCost ? 'Insufficient funds' : 'Upgrade system memory'}
                 >
                   <ArrowUpCircle size={15} />
                   <span>Expand RAM ({formatCurrency(ramCost)})</span>
                 </button>
               ) : (
-                <div className="ct-upgrade-card__max">MAX MEMORY LEVEL REACHED</div>
+                <div className="ct-upgrade-card__max">MAX RAM TIER REACHED</div>
               )}
             </div>
           )}
@@ -413,7 +413,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
                   <span>Provision Replica ({formatCurrency(replicationCost)})</span>
                 </button>
               ) : (
-                <div className="ct-upgrade-card__max">MAX REPLICAS ATTAINED</div>
+                <div className="ct-upgrade-card__max">MAX REPLICAS REACHED</div>
               )}
             </div>
           )}
@@ -461,7 +461,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
             onClick={handleAddServerBehind}
           >
             <PlusCircle size={15} />
-            <span>Add Server Behind (${NODE_TEMPLATES.server.costUsd})</span>
+            <span>Attach Downstream Server (${NODE_TEMPLATES.server.costUsd})</span>
           </button>
         )}
 

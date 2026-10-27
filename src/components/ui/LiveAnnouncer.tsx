@@ -134,7 +134,17 @@ export const LiveAnnouncer: React.FC = () => {
       const latestId = sim.incidentOrder[sim.incidentOrder.length - 1];
       const inc = sim.incidents[latestId];
       if (inc && !inc.acknowledged) {
-        announceAssertive(`Security Incident Alert: ${inc.title}. ${inc.detail}`);
+        if (inc.kind === 'power_fluctuation') {
+          announceAssertive(
+            `Emergency: Power Fluctuation detected! Intermittent brownout cycling across rack nodes. Deploy UPS rail to stabilize voltage.`
+          );
+        } else if (inc.kind === 'ddos_spike') {
+          announceAssertive(
+            `Critical Alert: Volumetric DDoS Spike in progress! Inbound demand surged to 450%. Engage AWS Shield scrubbing immediately.`
+          );
+        } else {
+          announceAssertive(`Infrastructure Incident: ${inc.title}. ${inc.detail}`);
+        }
       }
       prevIncidentCountRef.current = sim.incidentOrder.length;
     }

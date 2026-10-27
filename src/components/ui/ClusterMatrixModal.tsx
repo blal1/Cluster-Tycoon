@@ -141,11 +141,11 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
             <div className="flex items-center gap-2">
               <Server size={18} className="text-cyan-400" aria-hidden="true" />
               <h2 id="matrix-title" className="ct-matrix-modal__title">
-                Accessible Cluster Matrix & Control Console
+                Cluster Topology & Hardware Matrix
               </h2>
             </div>
             <p id="matrix-desc" className="ct-matrix-modal__subtitle">
-              Screen-reader and keyboard-accessible table of all deployed cluster nodes, telemetry, hardware tiers, and wiring controls.
+              Tabular inventory of active cluster nodes, resource utilization, hardware tiers, and network topology.
             </p>
           </div>
           <button
@@ -153,7 +153,7 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
             type="button"
             className="ct-btn ct-btn--ghost"
             onClick={onClose}
-            aria-label="Close Accessible Cluster Matrix (Escape)"
+            aria-label="Close Cluster Topology Matrix (Escape)"
           >
             <X size={16} />
             <span>Close [Esc]</span>

@@ -6,14 +6,15 @@ import {
   formatSecondsTime,
   NODE_TEMPLATES,
 } from '../../constants/gameConfig';
-import { Terminal, Shield, Keyboard, Activity } from 'lucide-react';
+import { Terminal, Shield, Keyboard, Activity, Flame } from 'lucide-react';
 
 interface StatusBarProps {
   onOpenShortcuts?: () => void;
   onOpenMatrix?: () => void;
+  onOpenIncidentGen?: () => void;
 }
 
-export const StatusBar: React.FC<StatusBarProps> = ({ onOpenShortcuts, onOpenMatrix }) => {
+export const StatusBar: React.FC<StatusBarProps> = ({ onOpenShortcuts, onOpenMatrix, onOpenIncidentGen }) => {
   const sim = useAppStore((s) => s.sim);
   const score = calculateScore(sim);
 
@@ -75,16 +76,29 @@ export const StatusBar: React.FC<StatusBarProps> = ({ onOpenShortcuts, onOpenMat
       </span>
 
       <span className="ml-auto flex items-center gap-2">
+        {onOpenIncidentGen && (
+          <button
+            type="button"
+            className="ct-statusbar__hotkey-pill"
+            onClick={onOpenIncidentGen}
+            title="Open Incidents & Chaos Console (Alt + I)"
+            aria-label="Open Incidents & Chaos Console (Alt + I)"
+          >
+            <Flame size={12} className={`inline mr-1 ${sim.incidentOrder.length > 0 ? 'text-red-400' : 'text-orange-400'}`} />
+            <kbd>Alt + I</kbd> Incidents
+          </button>
+        )}
+
         {onOpenMatrix && (
           <button
             type="button"
             className="ct-statusbar__hotkey-pill"
             onClick={onOpenMatrix}
-            title="Open Accessible Cluster Matrix (Alt + A)"
-            aria-label="Open Accessible Cluster Matrix (Alt + A)"
+            title="Open Cluster Topology Matrix (Alt + A)"
+            aria-label="Open Cluster Topology Matrix (Alt + A)"
           >
             <Activity size={12} className="inline mr-1 text-cyan-300" />
-            <kbd>Alt + A</kbd> A11y Matrix
+            <kbd>Alt + A</kbd> Matrix
           </button>
         )}
 
@@ -92,10 +106,10 @@ export const StatusBar: React.FC<StatusBarProps> = ({ onOpenShortcuts, onOpenMat
           type="button"
           className="ct-statusbar__hotkey-pill"
           onClick={onOpenShortcuts}
-          title="Open Shortcut Overlay (Shift + ?)"
+          title="Open Keyboard Shortcuts (Shift + ?)"
         >
           <Keyboard size={12} className="inline mr-1" />
-          <kbd>Shift + ?</kbd> Hotkeys
+          <kbd>Shift + ?</kbd> Shortcuts
         </button>
       </span>
     </div>

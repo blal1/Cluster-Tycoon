@@ -130,26 +130,58 @@ export const SideRail: React.FC = () => {
             Active Incidents ({activeIncidents.length})
           </h2>
           <div className="ct-incidents-list">
-            {activeIncidents.map((inc) => (
-              <div key={inc.id} className="ct-incident-card" data-severity={inc.severity}>
-                <div className="ct-incident-card__head">
-                  <span className="ct-incident-card__badge">{inc.severity.toUpperCase()}</span>
-                  <span className="ct-incident-card__time">
-                    {formatSecondsTime(inc.secondsRemaining)}
-                  </span>
+            {activeIncidents.map((inc) => {
+              const canAfford = sim.economy.cashUsd >= (inc.mitigationCostUsd ?? 100);
+              return (
+                <div key={inc.id} className="ct-incident-card" data-severity={inc.severity}>
+                  <div className="ct-incident-card__head">
+                    <span className="ct-incident-card__badge">{inc.severity.toUpperCase()}</span>
+                    <span className="ct-incident-card__time">
+                      {formatSecondsTime(inc.secondsRemaining)}
+                    </span>
+                  </div>
+                  <strong className="ct-incident-card__title">{inc.title}</strong>
+                  <p className="ct-incident-card__detail">{inc.detail}</p>
+
+                  {inc.kind === 'power_fluctuation' && (
+                    <div style={{ fontSize: '11px', color: 'var(--ct-amber)', margin: '4px 0 6px 0', fontWeight: 600 }}>
+                      ⚡ Status: {inc.flappingState?.toUpperCase()} (cycling brownout)
+                    </div>
+                  )}
+
+                  {inc.kind === 'ddos_spike' && (
+                    <div style={{ fontSize: '11px', color: 'var(--ct-red)', margin: '4px 0 6px 0', fontWeight: 600 }}>
+                      🌊 Traffic Surge: +{Math.round(((inc.trafficMultiplier ?? 4.5) - 1) * 100)}%
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                    {inc.mitigationAction && (
+                      <button
+                        type="button"
+                        className="ct-btn ct-btn--green ct-btn--sm"
+                        disabled={!canAfford}
+                        onClick={() => dispatch({ type: 'mitigateIncident', incidentId: inc.id })}
+                        title={`Execute ${inc.mitigationAction} (${formatCurrency(inc.mitigationCostUsd ?? 100)})`}
+                        style={{ flex: 1, padding: '4px 8px', fontSize: '11px' }}
+                      >
+                        <span>Fix (${inc.mitigationCostUsd ?? 100})</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="ct-btn ct-btn--ghost ct-btn--sm"
+                      onClick={() => handleDismissIncident(inc.id)}
+                      style={{ padding: '4px 8px', fontSize: '11px' }}
+                    >
+                      <XCircle size={11} />
+                      <span>Ack</span>
+                    </button>
+                  </div>
                 </div>
-                <strong className="ct-incident-card__title">{inc.title}</strong>
-                <p className="ct-incident-card__detail">{inc.detail}</p>
-                <button
-                  type="button"
-                  className="ct-btn ct-btn--ghost ct-btn--sm"
-                  onClick={() => handleDismissIncident(inc.id)}
-                >
-                  <XCircle size={12} />
-                  <span>Acknowledge</span>
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

@@ -20,6 +20,7 @@ import {
   Menu,
   Keyboard,
   Activity,
+  Flame,
 } from 'lucide-react';
 
 interface ToolItem {
@@ -42,9 +43,10 @@ const TOOLS: ToolItem[] = [
 interface TopBarProps {
   onOpenShortcuts?: () => void;
   onOpenMatrix?: () => void;
+  onOpenIncidentGen?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ onOpenShortcuts, onOpenMatrix }) => {
+export const TopBar: React.FC<TopBarProps> = ({ onOpenShortcuts, onOpenMatrix, onOpenIncidentGen }) => {
   const sim = useAppStore((s) => s.sim);
   const settings = useAppStore((s) => s.settings);
 
@@ -155,6 +157,22 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenShortcuts, onOpenMatrix })
 
       {/* Session Management */}
       <div className="ct-game__tools" role="group" aria-label="Navigation and system options">
+        {onOpenIncidentGen && (
+          <button
+            type="button"
+            className={`ct-tool ${sim.incidentOrder.length > 0 ? 'text-red-400 font-bold animate-pulse' : ''}`}
+            onClick={() => {
+              audio.playClick();
+              onOpenIncidentGen();
+            }}
+            title="Incidents & Chaos Console (Alt + I)"
+            aria-label={`Incidents & Chaos Console (${sim.incidentOrder.length} active outages)`}
+          >
+            <Flame size={14} className={sim.incidentOrder.length > 0 ? 'text-red-500' : 'text-orange-400'} />
+            <span>Incidents{sim.incidentOrder.length > 0 ? ` (${sim.incidentOrder.length})` : ''}</span>
+          </button>
+        )}
+
         {onOpenMatrix && (
           <button
             type="button"
@@ -163,11 +181,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenShortcuts, onOpenMatrix })
               audio.playClick();
               onOpenMatrix();
             }}
-            title="Accessible Cluster Matrix (Alt + A)"
-            aria-label="Accessible Cluster Matrix (Alt + A)"
+            title="Cluster Topology Matrix (Alt + A)"
+            aria-label="Cluster Topology Matrix (Alt + A)"
           >
             <Activity size={14} className="text-cyan-400" />
-            <span>A11y Matrix</span>
+            <span>Matrix</span>
           </button>
         )}
 
@@ -179,10 +197,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenShortcuts, onOpenMatrix })
               audio.playClick();
               onOpenShortcuts();
             }}
-            title="Hotkey keymap (Shift + ?)"
+            title="Keyboard shortcuts (Shift + ?)"
           >
             <Keyboard size={14} />
-            <span>Hotkeys [?]</span>
+            <span>Shortcuts</span>
           </button>
         )}
 

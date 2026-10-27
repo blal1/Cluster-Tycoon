@@ -121,7 +121,7 @@ export const NodeElement: React.FC<NodeElementProps> = memo(
         className={`ct-node ${selected ? 'ct-node--selected' : ''}`}
         role="button"
         tabIndex={tabbable ? 0 : -1}
-        aria-label={`${node.name} (${tmpl.label}), Status: ${statusMeta.glyph} ${statusMeta.label}, CPU: ${formatPercent(node.cpuUtilization)}, RAM: ${node.ramGb > 0 ? `${node.ramUsedGb}/${node.ramGb} GB` : 'N/A'}, Throughput: ${formatRps(node.currentRps)}. Press Enter or Space to inspect.`}
+        aria-label={`${node.name} (${tmpl.label})${node.powerFluctuating ? ' [⚡ POWER FLUCTUATING: INTERMITTENT BROWNOUT]' : ''}, Status: ${statusMeta.glyph} ${statusMeta.label}, CPU: ${formatPercent(node.cpuUtilization)}, RAM: ${node.ramGb > 0 ? `${node.ramUsedGb}/${node.ramGb} GB` : 'N/A'}, Throughput: ${formatRps(node.currentRps)}. Press Enter or Space to inspect.`}
       >
         {/* Selection Focus Ring */}
         {selected && (
@@ -377,6 +377,27 @@ export const NodeElement: React.FC<NodeElementProps> = memo(
                 stroke="var(--ct-cyan)"
                 strokeWidth="1.5"
                 transform="scale(0.55)"
+              />
+            </g>
+          )}
+
+          {/* Power Fluctuation Spark Indicator */}
+          {node.powerFluctuating && (
+            <g transform={`translate(${dims.w - 46}, 24)`}>
+              <rect
+                x={0}
+                y={0}
+                width={15}
+                height={12}
+                rx={2}
+                fill="rgba(255, 170, 0, 0.2)"
+                stroke="var(--ct-amber)"
+                strokeWidth={0.75}
+              />
+              <path
+                d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"
+                fill="var(--ct-amber)"
+                transform="scale(0.42) translate(4, -1)"
               />
             </g>
           )}

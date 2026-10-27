@@ -27,6 +27,9 @@ import {
   Settings,
   Save,
   Menu,
+  Flame,
+  Zap,
+  Radio,
 } from 'lucide-react';
 
 interface PaletteItem {
@@ -42,9 +45,10 @@ interface PaletteItem {
 interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
+  onOpenIncidentGen?: () => void;
 }
 
-export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose }) => {
+export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose, onOpenIncidentGen }) => {
   const sim = useAppStore((s) => s.sim);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState('');
@@ -175,6 +179,49 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
         icon: <Menu size={15} />,
         keywords: ['menu', 'exit', 'quit'],
         action: () => dispatch({ type: 'screen', screen: 'menu' }),
+      },
+      {
+        id: 'chaos:open',
+        title: 'Chaos: Open Incident Generator Console',
+        hint: 'Disaster simulation & failover tests (Alt + I)',
+        icon: <Flame size={15} className="text-red-400" />,
+        keywords: ['chaos', 'incident', 'generator', 'outage', 'failure', 'test', 'resilience', 'ddos', 'power'],
+        action: () => {
+          onClose();
+          onOpenIncidentGen?.();
+        },
+      },
+      {
+        id: 'chaos:power',
+        title: 'Chaos Test: Inject Power Fluctuation Outage',
+        hint: 'Trigger intermittent rack brownout cycling',
+        icon: <Zap size={15} className="text-yellow-400" />,
+        keywords: ['power', 'fluctuation', 'brownout', 'outage', 'voltage', 'flapping'],
+        action: () => {
+          onClose();
+          dispatch({ type: 'triggerIncident', kind: 'power_fluctuation' });
+        },
+      },
+      {
+        id: 'chaos:ddos',
+        title: 'Chaos Test: Launch DDoS Traffic Surge',
+        hint: 'Simulate 4.5x volumetric botnet spike',
+        icon: <Radio size={15} className="text-red-400" />,
+        keywords: ['ddos', 'spike', 'flood', 'surge', 'attack', 'traffic'],
+        action: () => {
+          onClose();
+          dispatch({ type: 'triggerIncident', kind: 'ddos_spike' });
+        },
+      },
+      {
+        id: 'chaos:toggle-mode',
+        title: sim.chaosMode ? 'Chaos Mode: Disable Auto-Chaos' : 'Chaos Mode: Enable Automated Chaos Monkey',
+        hint: sim.chaosMode ? 'Stop spontaneous outages' : 'Periodic automated chaos outages',
+        icon: <Flame size={15} className="text-orange-400" />,
+        keywords: ['chaos', 'monkey', 'mode', 'automated', 'random'],
+        action: () => {
+          dispatch({ type: 'toggleChaosMode' });
+        },
       },
     ];
 

@@ -17,22 +17,23 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     category: 'Global & System',
     icon: <Command size={14} className="text-cyan-400" />,
     shortcuts: [
-      { keys: ['?'], description: 'Toggle this Sysadmin Hotkey Overlay' },
-      { keys: ['Alt', 'A'], description: 'Open Accessible Cluster Matrix (Screen Reader & Keyboard Console)' },
-      { keys: ['Space', '/'], description: 'Open Fuzzy Command Palette' },
-      { keys: ['Esc'], description: 'Close modal / cancel tool / deselect node' },
-      { keys: ['S'], description: 'Quick-save cluster state to local storage' },
+      { keys: ['?'], description: 'Open keyboard shortcuts overlay' },
+      { keys: ['Alt', 'A'], description: 'Open Cluster Topology Matrix' },
+      { keys: ['Alt', 'I'], description: 'Open Incidents & Chaos Console' },
+      { keys: ['Space', '/'], description: 'Open command search palette' },
+      { keys: ['Esc'], description: 'Close active modal / deselect node' },
+      { keys: ['S'], description: 'Save cluster snapshot to local storage' },
     ],
   },
   {
-    category: 'Canvas & Topology Navigation',
+    category: 'Canvas Navigation',
     icon: <Navigation size={14} className="text-purple-400" />,
     shortcuts: [
-      { keys: ['F'], description: 'Auto-frame and fit all nodes in viewport' },
+      { keys: ['F'], description: 'Fit cluster topology in viewport' },
       { keys: ['+', '='], description: 'Zoom in canvas' },
       { keys: ['-', '_'], description: 'Zoom out canvas' },
-      { keys: ['Wheel'], description: 'Smooth zoom around cursor position' },
-      { keys: ['Drag Canvas'], description: 'Pan viewport across cluster space' },
+      { keys: ['Wheel'], description: 'Smooth zoom at cursor position' },
+      { keys: ['Drag Canvas'], description: 'Pan viewport' },
     ],
   },
   {
@@ -41,20 +42,20 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: ['Arrow Keys'], description: 'Directional navigation between adjacent nodes' },
       { keys: ['Shift', 'Arrows'], description: 'Nudge selected node position by 40px grid' },
-      { keys: ['V'], description: 'Scale Up (Vertical upgrade: CPU, RAM, RPS)' },
-      { keys: ['B'], description: 'Add Server Behind (Horizontal scale worker)' },
-      { keys: ['Del', 'Backspace'], description: 'Decommission selected hardware node' },
-      { keys: ['Alt + Click'], description: 'Sever & cut traffic wire / connection link' },
+      { keys: ['V'], description: 'Vertical scale (Upgrade CPU, RAM, or storage)' },
+      { keys: ['B'], description: 'Attach downstream server node' },
+      { keys: ['Del', 'Backspace'], description: 'Decommission selected node' },
+      { keys: ['Alt + Click'], description: 'Sever connection link' },
     ],
   },
   {
-    category: 'Simulation Telemetry & Speed',
+    category: 'Simulation Controls',
     icon: <Play size={14} className="text-yellow-400" />,
     shortcuts: [
-      { keys: ['P'], description: 'Toggle Pause / Resume cluster simulation' },
-      { keys: ['1'], description: 'Set simulation speed to 1x (Normal)' },
-      { keys: ['2'], description: 'Set simulation speed to 2x (Fast-Forward)' },
-      { keys: ['4'], description: 'Set simulation speed to 4x (Hyper-Drive)' },
+      { keys: ['P'], description: 'Pause or resume simulation' },
+      { keys: ['1'], description: 'Set simulation speed to 1x' },
+      { keys: ['2'], description: 'Set simulation speed to 2x' },
+      { keys: ['4'], description: 'Set simulation speed to 4x' },
     ],
   },
 ];
@@ -101,14 +102,13 @@ export const ShortcutOverlay: React.FC<ShortcutOverlayProps> = ({ open, onClose 
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Terminal Header Bar */}
+        {/* Header Bar */}
         <div className="ct-shortcut__header">
           <div className="ct-shortcut__title-group">
             <Terminal size={18} className="text-cyan-400" />
             <span className="ct-shortcut__title" id="shortcut-title">
-              SYSADMIN_KEYMAP :: PROTOCOL_REFERENCE
+              Keyboard Shortcuts & Controls
             </span>
-            <span className="ct-shortcut__cursor">_</span>
           </div>
           <button
             type="button"
@@ -126,8 +126,8 @@ export const ShortcutOverlay: React.FC<ShortcutOverlayProps> = ({ open, onClose 
 
         {/* Subtitle */}
         <p className="ct-shortcut__lead">
-          Terminal-grade system administrator key bindings. Press <kbd className="ct-key">?</kbd> or{' '}
-          <kbd className="ct-key">Esc</kbd> at any time to toggle this reference card.
+          Keyboard controls for navigating topology, provisioning nodes, and operating the cluster. Press <kbd className="ct-key">?</kbd> or{' '}
+          <kbd className="ct-key">Esc</kbd> at any time to toggle.
         </p>
 
         {/* Keybinding Grid */}
@@ -157,9 +157,9 @@ export const ShortcutOverlay: React.FC<ShortcutOverlayProps> = ({ open, onClose 
           ))}
         </div>
 
-        {/* Terminal Status Footer */}
+        {/* Footer */}
         <div className="ct-shortcut__footer">
-          <span className="text-cyan-400 font-bold">STATUS:</span> OPERATIONAL • PROCEED TO DIRECT CLUSTER MANIPULATION
+          <span className="text-gray-400 text-xs">Press <kbd className="ct-key">Esc</kbd> or click outside to dismiss.</span>
           <button
             type="button"
             className="ct-btn ct-btn--sm ml-auto"
@@ -168,7 +168,7 @@ export const ShortcutOverlay: React.FC<ShortcutOverlayProps> = ({ open, onClose 
               onClose();
             }}
           >
-            Acknowledge [Esc]
+            Close [Esc]
           </button>
         </div>
       </div>

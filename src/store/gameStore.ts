@@ -28,7 +28,9 @@ import {
   stepSimulation,
   getIdCounter,
   setIdCounter,
+  generateId,
 } from '../sim/simulationEngine';
+import { createIncidentInstance } from '../sim/incidentGenerator';
 import { audio } from '../audio/proceduralAudio';
 
 const SAVE_KEY = 'cluster-tycoon.save.v2';
@@ -723,6 +725,140 @@ function reduce(state: AppState, action: GameAction): AppState {
               acknowledged: true,
             },
           },
+        },
+        revision: state.revision + 1,
+      };
+    }
+
+    case 'triggerIncident': {
+      const inc = createIncidentInstance(
+        action.kind,
+        state.sim,
+        action.targetNodeId,
+        generateId
+      );
+      if (!inc) return state;
+
+      const newNodes = { ...state.sim.nodes };
+      if (inc.kind === 'hardware_failure' && inc.nodeId) {
+        const failNode = newNodes[inc.nodeId];
+        if (failNode) {
+          newNodes[inc.nodeId] = {
+            ...failNode,
+            repairSeconds: 15,
+            status: 'offline',
+            currentRps: 0,
+          };
+        }
+      }
+
+      if (inc.kind === 'ddos_spike') {
+        audio.playDdosAlarm();
+      } else if (inc.kind === 'power_fluctuation') {
+        audio.playPowerSpark();
+      } else {
+        audio.playIncidentAlert();
+      }
+      audio.triggerVibrate([60, 40, 140]);
+
+      return {
+        ...state,
+        sim: {
+          ...state.sim,
+          nodes: newNodes,
+          incidents: {
+            ...state.sim.incidents,
+            [inc.id]: inc,
+          },
+          incidentOrder: [...state.sim.incidentOrder, inc.id],
+        },
+        revision: state.revision + 1,
+      };
+    }
+
+    case 'mitigateIncident': {
+      const inc = state.sim.incidents[action.incidentId];
+      if (!inc) return state;
+
+      const cost = inc.mitigationCostUsd ?? 80;
+      if (state.sim.economy.cashUsd < cost) {
+        audio.playDenied();
+        return state;
+      }
+
+      const remainingIncidents = { ...state.sim.incidents };
+      delete remainingIncidents[action.incidentId];
+      const remainingOrder = state.sim.incidentOrder.filter((id) => id !== action.incidentId);
+
+      const newNodes = { ...state.sim.nodes };
+      const targets =
+        inc.affectedNodeIds && inc.affectedNodeIds.length > 0
+          ? inc.affectedNodeIds
+          : inc.nodeId
+          ? [inc.nodeId]
+          : [];
+      for (const tId of targets) {
+        if (newNodes[tId]) {
+          newNodes[tId] = {
+            ...newNodes[tId],
+            powerFluctuating: false,
+            repairSeconds: 0,
+            status: newNodes[tId].cpuUtilization >= 1.0 ? 'critical' : 'nominal',
+          };
+        }
+      }
+
+      audio.playMitigationSuccess();
+      audio.triggerVibrate([40, 60, 40]);
+
+      const historyEntry = {
+        id: inc.id,
+        kind: inc.kind,
+        title: inc.title,
+        resolvedAtMs: state.sim.elapsedMs,
+        durationSec: Math.round(inc.totalDurationSec - inc.secondsRemaining),
+        mitigationUsed: action.mitigationType || inc.mitigationAction || 'Manual SOP Incident Mitigation',
+        severity: inc.severity,
+      };
+
+      return {
+        ...state,
+        sim: {
+          ...state.sim,
+          nodes: newNodes,
+          incidents: remainingIncidents,
+          incidentOrder: remainingOrder,
+          incidentHistory: [...(state.sim.incidentHistory || []), historyEntry].slice(-30),
+          economy: {
+            ...state.sim.economy,
+            cashUsd: state.sim.economy.cashUsd - cost,
+            totalSpendUsd: state.sim.economy.totalSpendUsd + cost,
+          },
+        },
+        revision: state.revision + 1,
+      };
+    }
+
+    case 'toggleChaosMode': {
+      const newMode = action.enabled !== undefined ? action.enabled : !state.sim.chaosMode;
+      audio.playClick();
+      return {
+        ...state,
+        sim: {
+          ...state.sim,
+          chaosMode: newMode,
+          nextChaosSec: state.sim.chaosIntervalSec || 75,
+        },
+        revision: state.revision + 1,
+      };
+    }
+
+    case 'setChaosInterval': {
+      return {
+        ...state,
+        sim: {
+          ...state.sim,
+          chaosIntervalSec: Math.max(15, action.seconds),
         },
         revision: state.revision + 1,
       };

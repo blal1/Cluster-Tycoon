@@ -5,6 +5,7 @@ import {
   formatRps,
   formatCurrency,
   formatSecondsTime,
+  formatLatencyMs,
   NODE_TEMPLATES,
   STATUS_NON_COLOR_LABELS,
 } from '../../constants/gameConfig';
@@ -15,6 +16,7 @@ import {
   AlertTriangle,
   Server,
   XCircle,
+  Network,
 } from 'lucide-react';
 
 export const SideRail: React.FC = () => {
@@ -27,6 +29,18 @@ export const SideRail: React.FC = () => {
     .filter((inc) => inc && !inc.acknowledged);
 
   const netProfit = sim.economy.totalRevenueUsd - sim.economy.totalSpendUsd;
+
+  const activeNodesCount = nodesList.filter(
+    (n) => n.status !== 'offline' && n.status !== 'meltdown' && n.repairSeconds <= 0 && n.meltdownSeconds <= 0
+  ).length;
+  const latency = sim.networkLatencyMs ?? 6.8;
+  const hops = sim.clusterHops ?? 2;
+  const latencyColor =
+    latency >= 50
+      ? 'var(--ct-red)'
+      : latency >= 25
+      ? 'var(--ct-amber)'
+      : 'var(--ct-green)';
 
   const handleSelectNode = (id: string) => {
     if (sim.selectedNodeId === id) {
@@ -79,6 +93,28 @@ export const SideRail: React.FC = () => {
             >
               {formatRps(sim.droppedRps)}
             </span>
+          </div>
+        </div>
+        {/* Network Latency */}
+        <div
+          className="ct-metric"
+          aria-label={`Network Latency: ${formatLatencyMs(latency)}, ${hops} connection hops, ${activeNodesCount} active nodes`}
+        >
+          <div className="ct-metric__head">
+            <span className="ct-metric__name flex items-center gap-1">
+              <Network size={11} className="inline text-cyan-400" />
+              Network Latency
+            </span>
+            <span
+              className="ct-metric__value"
+              style={{ color: latencyColor }}
+            >
+              {formatLatencyMs(latency)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-gray-400 mt-1">
+            <span>{hops} connection hop{hops === 1 ? '' : 's'}</span>
+            <span>{activeNodesCount} active node{activeNodesCount === 1 ? '' : 's'}</span>
           </div>
         </div>
       </section>

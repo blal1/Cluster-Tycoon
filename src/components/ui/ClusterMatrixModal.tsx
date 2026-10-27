@@ -13,6 +13,7 @@ import {
   formatPercent,
   formatRps,
   formatGb,
+  formatLatencyMs,
   STATUS_NON_COLOR_LABELS,
 } from '../../constants/gameConfig';
 import { NodeKind, ClusterNode } from '../../types/game';
@@ -178,6 +179,20 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
             <span className="ct-matrix-stat__label">Served RPS</span>
             <strong className="ct-matrix-stat__value text-green-400">
               {formatRps(sim.servedRps)}
+            </strong>
+          </div>
+          <div className="ct-matrix-stat">
+            <span className="ct-matrix-stat__label">Network Latency</span>
+            <strong
+              className={`ct-matrix-stat__value ${
+                (sim.networkLatencyMs ?? 6.8) >= 50
+                  ? 'text-red-400'
+                  : (sim.networkLatencyMs ?? 6.8) >= 25
+                  ? 'text-yellow-400'
+                  : 'text-cyan-400'
+              }`}
+            >
+              {formatLatencyMs(sim.networkLatencyMs ?? 6.8)} ({sim.clusterHops ?? 2} hops)
             </strong>
           </div>
           <div className="ct-matrix-stat">

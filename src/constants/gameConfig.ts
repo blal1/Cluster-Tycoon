@@ -197,6 +197,12 @@ export function formatSecondsTime(seconds: number): string {
   return `${min.toString().padStart(2, '0')}:${remSec.toString().padStart(2, '0')}`;
 }
 
+export function formatLatencyMs(latencyMs: number): string {
+  if (!Number.isFinite(latencyMs) || latencyMs <= 0) return '0.0 ms';
+  if (latencyMs >= 1000) return `${(latencyMs / 1000).toFixed(2)} s`;
+  return `${latencyMs.toFixed(1)} ms`;
+}
+
 export function spokenCurrency(amount: number): string {
   if (!Number.isFinite(amount)) return 'zero dollars';
   const rounded = Math.round(amount);

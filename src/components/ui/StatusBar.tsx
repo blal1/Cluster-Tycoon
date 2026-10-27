@@ -4,6 +4,7 @@ import {
   formatCurrency,
   formatRps,
   formatSecondsTime,
+  formatLatencyMs,
   NODE_TEMPLATES,
 } from '../../constants/gameConfig';
 import { Terminal, Shield, Keyboard, Activity, Flame } from 'lucide-react';
@@ -54,6 +55,21 @@ export const StatusBar: React.FC<StatusBarProps> = ({ onOpenShortcuts, onOpenMat
 
       <span>
         SERVED: <strong className="text-green-400">{formatRps(sim.servedRps)}</strong>
+      </span>
+
+      <span>
+        LATENCY:{' '}
+        <strong
+          className={
+            (sim.networkLatencyMs ?? 6.8) >= 50
+              ? 'text-red-400 font-bold'
+              : (sim.networkLatencyMs ?? 6.8) >= 25
+              ? 'text-yellow-400'
+              : 'text-cyan-400'
+          }
+        >
+          {formatLatencyMs(sim.networkLatencyMs ?? 6.8)}
+        </strong>
       </span>
 
       {sim.droppedRps > 0 && (

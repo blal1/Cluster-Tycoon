@@ -130,6 +130,8 @@ export function createInitialSimulation(difficulty: GameDifficulty = 'normal'): 
     inboundRps: 0,
     servedRps: 0,
     droppedRps: 0,
+    networkLatencyMs: 6.8,
+    clusterHops: 2,
     camera: { x: 40, y: 0, zoom: 1 },
     gameOver: false,
     gameOverReason: null,
@@ -216,6 +218,116 @@ function topologicalOrder(
   }
 
   return result;
+}
+
+// Dynamically calculates cluster network latency based on active nodes and connection hops
+export function computeClusterTopologyLatency(
+  nodes: Record<string, ClusterNode>,
+  edges: Record<string, ClusterEdge>,
+  inboundRps: number = 0,
+  droppedRps: number = 0
+): { latencyMs: number; activeNodes: number; maxHops: number; avgHops: number } {
+  const nodeList = Object.values(nodes);
+  if (nodeList.length === 0) {
+    return { latencyMs: 0, activeNodes: 0, maxHops: 0, avgHops: 0 };
+  }
+
+  // Active nodes currently operational
+  const activeNodes = nodeList.filter(
+    (n) => n.status !== 'offline' && n.status !== 'meltdown' && n.repairSeconds <= 0 && n.meltdownSeconds <= 0
+  );
+  const activeCount = activeNodes.length;
+
+  if (activeCount === 0) {
+    return { latencyMs: 999, activeNodes: 0, maxHops: 0, avgHops: 0 };
+  }
+
+  // Build adjacency and compute shortest hops from entry nodes
+  const edgeList = Object.values(edges);
+  const inDegree = new Map<string, number>();
+  const adj = new Map<string, string[]>();
+
+  for (const n of nodeList) {
+    inDegree.set(n.id, 0);
+    adj.set(n.id, []);
+  }
+
+  for (const e of edgeList) {
+    if (nodes[e.fromId] && nodes[e.toId]) {
+      adj.get(e.fromId)?.push(e.toId);
+      inDegree.set(e.toId, (inDegree.get(e.toId) || 0) + 1);
+    }
+  }
+
+  let roots = nodeList.filter((n) => n.kind === 'entry');
+  if (roots.length === 0) {
+    roots = nodeList.filter((n) => (inDegree.get(n.id) || 0) === 0);
+  }
+  if (roots.length === 0) {
+    roots = [nodeList[0]];
+  }
+
+  // Breadth-first search from ingress roots to find connection hops
+  const hopMap = new Map<string, number>();
+  const queue: string[] = [];
+
+  for (const r of roots) {
+    hopMap.set(r.id, 0);
+    queue.push(r.id);
+  }
+
+  while (queue.length > 0) {
+    const currId = queue.shift()!;
+    const currHops = hopMap.get(currId) || 0;
+    const targets = adj.get(currId) || [];
+    for (const targetId of targets) {
+      if (!hopMap.has(targetId)) {
+        hopMap.set(targetId, currHops + 1);
+        queue.push(targetId);
+      }
+    }
+  }
+
+  // Calculate maximum and average connection hops across active nodes
+  const activeHopValues: number[] = [];
+  let maxHops = 0;
+  for (const n of activeNodes) {
+    const hops = hopMap.get(n.id);
+    if (hops !== undefined) {
+      activeHopValues.push(hops);
+      if (hops > maxHops) maxHops = hops;
+    }
+  }
+
+  const avgHops =
+    activeHopValues.length > 0
+      ? activeHopValues.reduce((a, b) => a + b, 0) / activeHopValues.length
+      : 0;
+
+  // Base VPC transit: 1.2 ms
+  // Per connection hop switching & serialization delay: 2.2 ms per hop
+  // Active node mesh & distributed routing overhead: 0.35 ms per active node
+  const baseTransitMs = 1.2;
+  const hopOverheadMs = avgHops * 2.2;
+  const activeScaleMs = activeCount * 0.35;
+
+  // Processing queue latency across active nodes on path
+  const avgNodeProcessingMs =
+    activeNodes.reduce((acc, n) => acc + (Number.isFinite(n.latencyMs) ? n.latencyMs : 1.5), 0) /
+    activeCount;
+
+  // Congestion & TCP retransmission penalty if packets are dropped
+  const dropRatio = inboundRps > 0 ? clampVal(droppedRps / inboundRps, 0, 1) : 0;
+  const dropPenaltyMs = dropRatio * 45;
+
+  const totalLatencyMs = Math.round((baseTransitMs + hopOverheadMs + activeScaleMs + avgNodeProcessingMs + dropPenaltyMs) * 10) / 10;
+
+  return {
+    latencyMs: totalLatencyMs,
+    activeNodes: activeCount,
+    maxHops,
+    avgHops: Math.round(avgHops * 10) / 10,
+  };
 }
 
 // Generate itemized AWS invoice
@@ -681,6 +793,14 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
     }
   }
 
+  // Dynamic network latency and connection hops computation
+  const topologyMetrics = computeClusterTopologyLatency(
+    newNodes,
+    newEdges,
+    smoothedInbound,
+    totalDroppedRps
+  );
+
   return {
     ...sim,
     elapsedMs: newElapsedMs,
@@ -691,6 +811,8 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
     inboundRps: smoothedInbound,
     servedRps: totalServedRps,
     droppedRps: totalDroppedRps,
+    networkLatencyMs: topologyMetrics.latencyMs,
+    clusterHops: topologyMetrics.maxHops,
     gameOver,
     gameOverReason,
     meltdownCount: sim.meltdownCount + newMeltdownEvents,

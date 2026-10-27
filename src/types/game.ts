@@ -166,6 +166,8 @@ export interface SimulationState {
   inboundRps: number;
   servedRps: number;
   droppedRps: number;
+  networkLatencyMs: number;
+  clusterHops: number;
   camera: CameraState;
   gameOver: boolean;
   gameOverReason: string | null;

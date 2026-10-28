@@ -30,6 +30,7 @@ import {
   Database,
   Clock,
   Sparkles,
+  Globe,
 } from 'lucide-react';
 
 interface NodeInspectorProps {
@@ -38,6 +39,8 @@ interface NodeInspectorProps {
 
 export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
   const cashUsd = useAppStore((s) => s.sim.economy.cashUsd);
+  const geoDnsMode = useAppStore((s) => s.sim.geoDnsMode ?? 'failover');
+  const activeFailover = useAppStore((s) => s.sim.activeFailover ?? false);
   const tmpl = NODE_TEMPLATES[node.kind];
 
   const cpuTier = node.cpuTier ?? 0;
@@ -104,6 +107,13 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
             {tmpl.label}
           </span>
           <h3 className="ct-inspector__title">{node.name}</h3>
+          <div className="flex items-center gap-2 mt-1 font-mono text-[11px] text-[var(--ct-text-muted)]">
+            <span className="px-1.5 py-0.5 rounded bg-[var(--ct-surface-3)] text-[var(--ct-text-strong)] font-semibold border border-[var(--ct-border)]">
+              {node.region ?? 'us-east-1'}
+            </span>
+            <span className="text-[var(--ct-text-faint)]">/</span>
+            <span className="text-[var(--ct-cyan)]">{node.availabilityZone ?? 'us-east-1a'}</span>
+          </div>
         </div>
         <span className={`ct-node-row__status ct-status--${node.status}`}>
           {node.status.toUpperCase()}
@@ -466,14 +476,73 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ node }) => {
         )}
 
         {node.kind === 'entry' && (
-          <button
-            type="button"
-            className={`ct-btn ct-btn--block ${node.shielded ? 'ct-btn--shield-on' : ''}`}
-            onClick={handleToggleShield}
-          >
-            {node.shielded ? <ShieldCheck size={15} /> : <ShieldAlert size={15} />}
-            <span>DDoS Shield: {node.shielded ? 'ENABLED' : 'DISABLED'}</span>
-          </button>
+          <>
+            <button
+              type="button"
+              className={`ct-btn ct-btn--block ${node.shielded ? 'ct-btn--shield-on' : ''}`}
+              onClick={handleToggleShield}
+            >
+              {node.shielded ? <ShieldCheck size={15} /> : <ShieldAlert size={15} />}
+              <span>DDoS Shield: {node.shielded ? 'ENABLED' : 'DISABLED'}</span>
+            </button>
+
+            {/* Global Anycast Geo-DNS Ingress Routing Selector */}
+            <div className="p-3 rounded border border-[var(--ct-border)] bg-[var(--ct-surface-2)] mt-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--ct-cyan)] flex items-center gap-1.5">
+                  <Globe size={13} />
+                  Geo-DNS Ingress Policy
+                </span>
+                {activeFailover && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-950/80 border border-red-500/60 text-red-400 animate-pulse">
+                    FAILOVER ACTIVE
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-[var(--ct-text-muted)] mb-2.5 leading-snug">
+                Distributes ingress traffic across cloud regions with automated resilience.
+              </p>
+              <div className="grid grid-cols-1 gap-1.5">
+                {[
+                  {
+                    id: 'failover',
+                    label: 'Automated Failover (HA/DR)',
+                    desc: 'Instantly redirects traffic to alternate regions when an outage or blackout strikes.',
+                  },
+                  {
+                    id: 'proximity',
+                    label: 'Proximity Latency Routing',
+                    desc: 'Routes users to lowest-latency datacenters to minimize round-trip physical delay.',
+                  },
+                  {
+                    id: 'roundrobin',
+                    label: 'Round-Robin Ingress',
+                    desc: 'Distributes incoming load evenly across all online cloud regions.',
+                  },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={`text-left px-2.5 py-2 rounded text-xs border transition-colors ${
+                      geoDnsMode === opt.id
+                        ? 'border-[var(--ct-cyan)] bg-[var(--ct-cyan)]/15 text-white font-medium'
+                        : 'border-[var(--ct-border)] bg-[var(--ct-surface-1)] text-[var(--ct-text-muted)] hover:border-[var(--ct-text-muted)]'
+                    }`}
+                    onClick={() => {
+                      audio.playClick();
+                      dispatch({ type: 'setGeoDnsMode', mode: opt.id as any });
+                    }}
+                  >
+                    <div className="font-semibold text-[var(--ct-text-strong)] flex items-center justify-between">
+                      <span>{opt.label}</span>
+                      {geoDnsMode === opt.id && <span className="text-[var(--ct-cyan)] text-[10px]">● ACTIVE</span>}
+                    </div>
+                    <div className="text-[10px] text-[var(--ct-text-muted)] mt-0.5">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {node.kind !== 'entry' && (

@@ -17,10 +17,12 @@ import {
   GRID_MAJOR,
   NODE_DIMENSIONS,
   NODE_TEMPLATES,
+  CLOUD_REGIONS,
   formatCurrency,
+  formatRps,
 } from '../../constants/gameConfig';
 import { audio } from '../../audio/proceduralAudio';
-import { ClusterNode, Point2D } from '../../types/game';
+import { ClusterNode, Point2D, CloudRegionId } from '../../types/game';
 
 interface DragState {
   nodeId: string;
@@ -440,6 +442,121 @@ export const ClusterCanvas: React.FC = () => {
             fill="url(#ct-grid-major)"
           />
 
+          {/* Cloud Region Partitions & Availability Zones */}
+          <g className="ct-regions-layer" pointerEvents="none">
+            {Object.values(CLOUD_REGIONS).map((reg) => {
+              const regNodes = nodesList.filter((n) => n.region === reg.id);
+              const regHealth = sim.regionalHealth?.[reg.id] ?? 'nominal';
+              const regRps = sim.regionalRps?.[reg.id] ?? 0;
+              const width = reg.bounds.maxX - reg.bounds.minX;
+              const height = 1800;
+              const topY = -900;
+
+              return (
+                <g key={reg.id} className="ct-region-zone">
+                  {/* Regional boundary background */}
+                  <rect
+                    x={reg.bounds.minX}
+                    y={topY}
+                    width={width}
+                    height={height}
+                    fill={reg.accentColor}
+                    fillOpacity={0.015}
+                    stroke={reg.accentColor}
+                    strokeOpacity={0.16}
+                    strokeWidth={1.5}
+                    strokeDasharray="10 8"
+                  />
+
+                  {/* Horizontal Availability Zone divider at Y=0 */}
+                  <line
+                    x1={reg.bounds.minX}
+                    y1={0}
+                    x2={reg.bounds.maxX}
+                    y2={0}
+                    stroke={reg.accentColor}
+                    strokeOpacity={0.12}
+                    strokeDasharray="4 4"
+                    strokeWidth={1}
+                  />
+
+                  {/* AZ Labels */}
+                  <text
+                    x={reg.bounds.minX + 20}
+                    y={-14}
+                    fill={reg.accentColor}
+                    fillOpacity={0.45}
+                    fontSize={11}
+                    fontFamily="monospace"
+                    fontWeight={600}
+                  >
+                    AZ-A :: {reg.primaryAzs[0]}
+                  </text>
+                  <text
+                    x={reg.bounds.minX + 20}
+                    y={22}
+                    fill={reg.accentColor}
+                    fillOpacity={0.45}
+                    fontSize={11}
+                    fontFamily="monospace"
+                    fontWeight={600}
+                  >
+                    AZ-B :: {reg.primaryAzs[1]}
+                  </text>
+
+                  {/* Region Header Panel at Top */}
+                  <g transform={`translate(${reg.bounds.minX + 20}, ${topY + 30})`}>
+                    <rect
+                      x={0}
+                      y={0}
+                      width={280}
+                      height={58}
+                      rx={6}
+                      fill="#080c14"
+                      stroke={reg.accentColor}
+                      strokeOpacity={0.35}
+                      strokeWidth={1.2}
+                      style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
+                    />
+                    <text
+                      x={14}
+                      y={22}
+                      fill="#f3f4f6"
+                      fontSize={13}
+                      fontFamily="monospace"
+                      fontWeight={700}
+                      letterSpacing="0.05em"
+                    >
+                      [{reg.flag}] {reg.name.toUpperCase()} · {reg.id}
+                    </text>
+                    <text
+                      x={14}
+                      y={42}
+                      fill={
+                        regHealth === 'blackout'
+                          ? 'var(--ct-red)'
+                          : regHealth === 'degraded'
+                          ? 'var(--ct-amber)'
+                          : 'var(--ct-green)'
+                      }
+                      fontSize={11}
+                      fontFamily="monospace"
+                      fontWeight={600}
+                    >
+                      {regHealth === 'blackout'
+                        ? '✕ REGIONAL BLACKOUT'
+                        : regHealth === 'degraded'
+                        ? '▲ DEGRADED LOAD'
+                        : '● REGION OPERATIONAL'}
+                      {' · '}
+                      <tspan fill="#9ca3af">{regNodes.length} nodes · {formatRps(regRps)}</tspan>
+                    </text>
+                  </g>
+                </g>
+              );
+            })}
+          </g>
+
           {/* Render edges */}
           <g className="ct-edges">
             {edgesList.map((edge) => {
@@ -515,6 +632,43 @@ export const ClusterCanvas: React.FC = () => {
           })}
         </g>
       </svg>
+
+      {/* Multi-Region Camera Navigation Bar */}
+      <div className="ct-canvas__regions-bar" role="toolbar" aria-label="Cloud Regions Jump Navigation">
+        <span className="ct-canvas__regions-title">REGIONS:</span>
+        <button
+          type="button"
+          className="ct-canvas__region-btn"
+          onClick={() => {
+            audio.playClick();
+            dispatch({ type: 'setCamera', camera: { x: 300, y: 0, zoom: 0.6 } });
+          }}
+          title="Zoom out to view all global regions"
+        >
+          All Regions
+        </button>
+        {Object.values(CLOUD_REGIONS).map((reg) => {
+          const centerX = (reg.bounds.minX + reg.bounds.maxX) / 2;
+          const regHealth = sim.regionalHealth?.[reg.id] ?? 'nominal';
+          const regNodes = nodesList.filter((n) => n.region === reg.id);
+          return (
+            <button
+              key={reg.id}
+              type="button"
+              className={`ct-canvas__region-btn ${regHealth === 'blackout' ? 'ct-canvas__region-btn--blackout' : ''}`}
+              onClick={() => {
+                audio.playClick();
+                dispatch({ type: 'setCamera', camera: { x: centerX, y: 0, zoom: 0.95 } });
+              }}
+              title={`Center camera on ${reg.name} (${reg.id})`}
+            >
+              <span className={`ct-region-dot ct-region-dot--${regHealth}`} />
+              <span>{reg.id}</span>
+              <span className="opacity-60 text-[10px]">({regNodes.length})</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Mode hint legend at bottom */}
       <div className="ct-canvas__legend">

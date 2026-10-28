@@ -121,7 +121,7 @@ export const NodeElement: React.FC<NodeElementProps> = memo(
         className={`ct-node ${selected ? 'ct-node--selected' : ''}`}
         role="button"
         tabIndex={tabbable ? 0 : -1}
-        aria-label={`${node.name} (${tmpl.label})${node.powerFluctuating ? ' [⚡ POWER FLUCTUATING: INTERMITTENT BROWNOUT]' : ''}, Status: ${statusMeta.glyph} ${statusMeta.label}, CPU: ${formatPercent(node.cpuUtilization)}, RAM: ${node.ramGb > 0 ? `${node.ramUsedGb}/${node.ramGb} GB` : 'N/A'}, Throughput: ${formatRps(node.currentRps)}. Press Enter or Space to inspect.`}
+        aria-label={`${node.name} (${tmpl.label}) in [${node.availabilityZone ?? node.region ?? 'us-east-1'}], ${node.powerFluctuating ? '[⚡ POWER FLUCTUATING: INTERMITTENT BROWNOUT] ' : ''}Status: ${statusMeta.glyph} ${statusMeta.label}, CPU: ${formatPercent(node.cpuUtilization)}, RAM: ${node.ramGb > 0 ? `${node.ramUsedGb}/${node.ramGb} GB` : 'N/A'}, Throughput: ${formatRps(node.currentRps)}. Press Enter or Space to inspect.`}
       >
         {/* Selection Focus Ring */}
         {selected && (
@@ -214,6 +214,17 @@ export const NodeElement: React.FC<NodeElementProps> = memo(
             d={bracketsPath}
             stroke={cpuTier > 0 ? cpuTierConfig.color : accentColor}
           />
+
+          {/* Region / AZ Rack Identifier */}
+          <text
+            x={12}
+            y={14}
+            className="ct-node__az-badge"
+            fill="var(--ct-text-muted)"
+            style={{ fontSize: '8px', fontFamily: 'monospace', letterSpacing: '0.04em', opacity: 0.75 }}
+          >
+            {(node.availabilityZone || node.region || 'us-east-1a').toUpperCase()}
+          </text>
 
           {/* Tier-based Visual Core Indicators */}
           {/* Base Core Circle Backdrop */}

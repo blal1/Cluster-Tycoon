@@ -2267,4 +2267,108 @@ html, body, #root {
   border-top: 1px solid var(--ct-line-strong);
 }
 
+/* Multi-Region Canvas Jump Bar */
+.ct-canvas__regions-bar {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(10, 14, 22, 0.85);
+  border: 1px solid var(--ct-line-strong);
+  backdrop-filter: blur(8px);
+  border-radius: var(--ct-r-sm);
+  z-index: 20;
+}
+
+.ct-canvas__regions-title {
+  font-family: var(--ct-font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ct-text-muted);
+  margin-right: 2px;
+}
+
+.ct-canvas__region-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: var(--ct-surface-2);
+  border: 1px solid var(--ct-line);
+  border-radius: 3px;
+  color: var(--ct-text-strong);
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ct-canvas__region-btn:hover {
+  background: var(--ct-surface-3);
+  border-color: var(--ct-cyan);
+  color: var(--ct-cyan);
+}
+
+.ct-canvas__region-btn--blackout {
+  border-color: var(--ct-red) !important;
+  background: rgba(255, 59, 92, 0.15) !important;
+  color: var(--ct-red) !important;
+  animation: pulse 1.2s infinite;
+}
+
+.ct-region-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ct-green);
+}
+
+.ct-region-dot--nominal {
+  background: var(--ct-green);
+  box-shadow: 0 0 5px var(--ct-green);
+}
+
+.ct-region-dot--degraded {
+  background: var(--ct-amber);
+  box-shadow: 0 0 5px var(--ct-amber);
+}
+
+.ct-region-dot--blackout {
+  background: var(--ct-red);
+  box-shadow: 0 0 6px var(--ct-red);
+}
+
+/* Cross-Region Optical WAN Badges */
+.ct-edge__wan-badge {
+  pointer-events: none;
+  user-select: none;
+}
+
+.ct-edge__wan-bg {
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7));
+}
+
+.ct-edge__wan-text {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ct-edge--severed {
+  stroke-dasharray: 4 6 !important;
+  animation: none !important;
+}
+
+/* AZ tag on node element */
+.ct-node__az-badge {
+  user-select: none;
+  pointer-events: none;
+}
+
+
 

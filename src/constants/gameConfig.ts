@@ -1,4 +1,4 @@
-import { NodeKind, NodeTemplate, GameDifficulty } from '../types/game';
+import { NodeKind, NodeTemplate, GameDifficulty, CloudRegionId, Point2D } from '../types/game';
 
 export const BILLING_CYCLE_SECONDS = 180;
 export const BASE_REVENUE_PER_RPS = 0.0042;
@@ -263,6 +263,77 @@ export function getReplicationCost(node: { kind: NodeKind; replication: number }
 export function getShardingCost(node: { kind: NodeKind; sharding: boolean }): number {
   if (node.kind !== 'database' || node.sharding) return 0;
   return 350;
+}
+
+export interface CloudRegionConfig {
+  id: CloudRegionId;
+  name: string;
+  location: string;
+  flag: string;
+  code: string;
+  bounds: { minX: number; maxX: number };
+  accentColor: string;
+  primaryAzs: string[];
+}
+
+export const CLOUD_REGIONS: Record<CloudRegionId, CloudRegionConfig> = {
+  'us-east-1': {
+    id: 'us-east-1',
+    name: 'US East',
+    location: 'N. Virginia',
+    flag: 'US',
+    code: 'iad',
+    bounds: { minX: -1400, maxX: -100 },
+    accentColor: 'var(--ct-cyan)',
+    primaryAzs: ['us-east-1a', 'us-east-1b'],
+  },
+  'eu-west-1': {
+    id: 'eu-west-1',
+    name: 'EU West',
+    location: 'Ireland',
+    flag: 'EU',
+    code: 'dub',
+    bounds: { minX: -50, maxX: 950 },
+    accentColor: 'var(--ct-green)',
+    primaryAzs: ['eu-west-1a', 'eu-west-1b'],
+  },
+  'ap-southeast-1': {
+    id: 'ap-southeast-1',
+    name: 'AP South',
+    location: 'Singapore',
+    flag: 'SG',
+    code: 'sin',
+    bounds: { minX: 1000, maxX: 2100 },
+    accentColor: 'var(--ct-gold)',
+    primaryAzs: ['ap-southeast-1a', 'ap-southeast-1b'],
+  },
+};
+
+// Physical fiber speed-of-light round-trip latency (ms)
+export const CROSS_REGION_LATENCIES_MS: Record<string, number> = {
+  'us-east-1_eu-west-1': 72,
+  'eu-west-1_us-east-1': 72,
+  'eu-west-1_ap-southeast-1': 118,
+  'ap-southeast-1_eu-west-1': 118,
+  'us-east-1_ap-southeast-1': 165,
+  'ap-southeast-1_us-east-1': 165,
+};
+
+export function getRegionForPosition(x: number): CloudRegionId {
+  if (x < -75) return 'us-east-1';
+  if (x > 975) return 'ap-southeast-1';
+  return 'eu-west-1';
+}
+
+export function getAvailabilityZoneForPosition(pos: Point2D): string {
+  const reg = getRegionForPosition(pos.x);
+  return pos.y >= 0 ? `${reg}b` : `${reg}a`;
+}
+
+export function getCrossRegionLatency(fromRegion: CloudRegionId, toRegion: CloudRegionId): number {
+  if (fromRegion === toRegion) return 2.4; // Local intra-region
+  const key = `${fromRegion}_${toRegion}`;
+  return CROSS_REGION_LATENCIES_MS[key] ?? 75;
 }
 
 

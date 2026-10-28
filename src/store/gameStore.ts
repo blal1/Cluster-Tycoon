@@ -20,6 +20,9 @@ import {
   getReplicationCost,
   getShardingCost,
   MAX_HARDWARE_TIER,
+  getRegionForPosition,
+  getAvailabilityZoneForPosition,
+  getCrossRegionLatency,
 } from '../constants/gameConfig';
 import {
   createInitialSimulation,
@@ -252,17 +255,43 @@ function reduce(state: AppState, action: GameAction): AppState {
     case 'moveNode': {
       const node = state.sim.nodes[action.nodeId];
       if (!node) return state;
+      const newRegion = getRegionForPosition(action.pos.x);
+      const newAz = getAvailabilityZoneForPosition(action.pos);
+      const updatedNode = {
+        ...node,
+        pos: action.pos,
+        region: newRegion,
+        availabilityZone: newAz,
+      };
+
+      const updatedNodes = {
+        ...state.sim.nodes,
+        [action.nodeId]: updatedNode,
+      };
+
+      // Recalculate cross-region status and latency on connected edges
+      const updatedEdges = { ...state.sim.edges };
+      for (const [eid, edge] of Object.entries(updatedEdges)) {
+        if (edge.fromId === action.nodeId || edge.toId === action.nodeId) {
+          const fn = updatedNodes[edge.fromId];
+          const tn = updatedNodes[edge.toId];
+          if (fn && tn) {
+            const isCross = (fn.region || 'eu-west-1') !== (tn.region || 'eu-west-1');
+            updatedEdges[eid] = {
+              ...edge,
+              isCrossRegion: isCross,
+              crossRegionLatencyMs: isCross ? getCrossRegionLatency(fn.region, tn.region) : 0,
+            };
+          }
+        }
+      }
+
       return {
         ...state,
         sim: {
           ...state.sim,
-          nodes: {
-            ...state.sim.nodes,
-            [action.nodeId]: {
-              ...node,
-              pos: action.pos,
-            },
-          },
+          nodes: updatedNodes,
+          edges: updatedEdges,
         },
         revision: state.revision + 1,
       };
@@ -331,7 +360,7 @@ function reduce(state: AppState, action: GameAction): AppState {
         return state;
       }
 
-      const newEdge = createEdge(fromId, toId);
+      const newEdge = createEdge(fromId, toId, state.sim.nodes);
       audio.playConnect();
       audio.triggerVibrate(20);
 
@@ -343,6 +372,18 @@ function reduce(state: AppState, action: GameAction): AppState {
             ...state.sim.edges,
             [newEdge.id]: newEdge,
           },
+        },
+        revision: state.revision + 1,
+      };
+    }
+
+    case 'setGeoDnsMode': {
+      audio.playClick();
+      return {
+        ...state,
+        sim: {
+          ...state.sim,
+          geoDnsMode: action.mode,
         },
         revision: state.revision + 1,
       };

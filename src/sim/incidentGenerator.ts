@@ -5,6 +5,7 @@ import {
   ClusterNode,
   SimulationState,
   IncidentHistoryEntry,
+  CloudRegionId,
 } from '../types/game';
 
 export interface IncidentTemplate {
@@ -22,6 +23,32 @@ export interface IncidentTemplate {
 }
 
 export const INCIDENT_CATALOG: Record<IncidentKind, IncidentTemplate> = {
+  regional_blackout: {
+    kind: 'regional_blackout',
+    title: 'Regional Grid Substation Blackout',
+    shortDesc: 'Complete electrical utility collapse across an entire cloud region.',
+    detailedDesc:
+      'High-voltage transmission substation failure caused catastrophic blackout across all datacenter facilities in this region. Local compute and storage instances lose grid power. Multi-Region Geo-DNS Automated Failover must absorb traffic to secondary regions.',
+    severity: 'critical',
+    baseDurationSec: 32,
+    mitigationAction: 'Activate Emergency Diesel Generators & Geo-DNS Failover',
+    mitigationCostUsd: 320,
+    icon: '⚡',
+    accentColor: 'var(--ct-red)',
+  },
+  fiber_cut: {
+    kind: 'fiber_cut',
+    title: 'Subsea WAN Cable Severance',
+    shortDesc: 'Transoceanic optical fiber bundle cut. Cross-region latency spikes +350ms.',
+    detailedDesc:
+      'Maritime anchor drag severed a primary transatlantic subsea optical fiber trunk. Cross-region WAN traffic drops 80% bandwidth and fails over to high-latency geostationary satellite relays, spiking inter-region ping to 380ms.',
+    severity: 'high',
+    baseDurationSec: 28,
+    mitigationAction: 'BGP Anycast WAN Reroute via Terrestrial Fiber',
+    mitigationCostUsd: 240,
+    icon: '🌐',
+    accentColor: 'var(--ct-amber)',
+  },
   power_fluctuation: {
     kind: 'power_fluctuation',
     title: 'Rack PDU Power Fluctuation',
@@ -145,12 +172,39 @@ export function createIncidentInstance(
 
   let chosenNodeId: string | null = targetNodeId ?? null;
   let affectedNodeIds: string[] = [];
+  let targetRegion: CloudRegionId | undefined = undefined;
+  let severedEdgeIds: string[] = [];
 
   const eligibleNodes = Object.values(sim.nodes).filter(
     (n) => n.kind !== 'entry' && n.status !== 'meltdown'
   );
 
-  if (kind === 'power_fluctuation') {
+  if (kind === 'regional_blackout') {
+    // Count nodes per region and select region with nodes
+    const counts: Record<CloudRegionId, number> = { 'us-east-1': 0, 'eu-west-1': 0, 'ap-southeast-1': 0 };
+    for (const n of Object.values(sim.nodes)) {
+      if (n.region && n.kind !== 'entry') {
+        counts[n.region] = (counts[n.region] || 0) + 1;
+      }
+    }
+    const regionsWithNodes = (Object.keys(counts) as CloudRegionId[]).filter((r) => counts[r] > 0);
+    targetRegion = regionsWithNodes.length > 0
+      ? regionsWithNodes[Math.floor(Math.random() * regionsWithNodes.length)]
+      : 'eu-west-1';
+
+    affectedNodeIds = Object.values(sim.nodes)
+      .filter((n) => n.region === targetRegion && n.kind !== 'entry')
+      .map((n) => n.id);
+    chosenNodeId = affectedNodeIds[0] ?? null;
+  } else if (kind === 'fiber_cut') {
+    // Find cross-region edges
+    const crossEdges = Object.values(sim.edges).filter((e) => {
+      const fn = sim.nodes[e.fromId];
+      const tn = sim.nodes[e.toId];
+      return fn && tn && fn.region !== tn.region;
+    });
+    severedEdgeIds = crossEdges.length > 0 ? crossEdges.map((e) => e.id) : Object.keys(sim.edges).slice(0, 2);
+  } else if (kind === 'power_fluctuation') {
     // Pick 1 to 3 non-entry nodes to suffer intermittent brownouts
     if (chosenNodeId && sim.nodes[chosenNodeId]) {
       affectedNodeIds = [chosenNodeId];
@@ -190,7 +244,11 @@ export function createIncidentInstance(
 
   const nodeName = chosenNodeId && sim.nodes[chosenNodeId] ? sim.nodes[chosenNodeId].name : 'Cluster';
   const detail =
-    kind === 'power_fluctuation'
+    kind === 'regional_blackout'
+      ? `Utility substation failure in ${targetRegion?.toUpperCase()}. ${affectedNodeIds.length} instance(s) failing over.`
+      : kind === 'fiber_cut'
+      ? `Subsea fiber cut detected. WAN links throttling through high-latency satellite relays (+350ms).`
+      : kind === 'power_fluctuation'
       ? `${affectedNodeIds.map((id) => sim.nodes[id]?.name || id).join(', ')} cycling brownouts due to PDU transformer fluctuation.`
       : kind === 'ddos_spike'
       ? `Synthetic traffic surging by +${Math.round((tmpl.trafficMultiplier! - 1) * 100)}% on ingress ${nodeName}.`
@@ -201,7 +259,9 @@ export function createIncidentInstance(
     kind,
     nodeId: chosenNodeId,
     affectedNodeIds,
-    title: tmpl.title,
+    targetRegion,
+    severedEdgeIds,
+    title: kind === 'regional_blackout' && targetRegion ? `Substation Blackout (${targetRegion.toUpperCase()})` : tmpl.title,
     detail,
     startedAtMs: sim.elapsedMs,
     secondsRemaining: tmpl.baseDurationSec,

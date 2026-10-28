@@ -7,12 +7,17 @@ import {
   BillLineItem,
   NodeKind,
   GameDifficulty,
+  CloudRegionId,
+  GeoDnsMode,
 } from '../types/game';
 import {
   BILLING_CYCLE_SECONDS,
   BASE_REVENUE_PER_RPS,
   NODE_TEMPLATES,
   INITIAL_START_CASH,
+  getRegionForPosition,
+  getAvailabilityZoneForPosition,
+  getCrossRegionLatency,
 } from '../constants/gameConfig';
 import {
   createIncidentInstance,
@@ -41,6 +46,8 @@ export function createNode(
   createdAtMs: number
 ): ClusterNode {
   const tmpl = NODE_TEMPLATES[kind];
+  const region = getRegionForPosition(pos.x);
+  const availabilityZone = getAvailabilityZoneForPosition(pos);
   return {
     id: generateId(kind.slice(0, 3)),
     kind,
@@ -64,18 +71,36 @@ export function createNode(
     meltdownSeconds: 0,
     shielded: false,
     autoReboot: true,
+    region,
+    availabilityZone,
+    geoDnsMode: kind === 'entry' ? 'failover' : undefined,
     createdAtMs,
   };
 }
 
-export function createEdge(fromId: string, toId: string): ClusterEdge {
+export function createEdge(
+  fromId: string,
+  toId: string,
+  nodes?: Record<string, ClusterNode>
+): ClusterEdge {
+  let isCrossRegion = false;
+  let crossRegionLatencyMs = 0;
+  if (nodes && nodes[fromId] && nodes[toId]) {
+    const fromRegion = nodes[fromId].region ?? getRegionForPosition(nodes[fromId].pos.x);
+    const toRegion = nodes[toId].region ?? getRegionForPosition(nodes[toId].pos.x);
+    isCrossRegion = fromRegion !== toRegion;
+    crossRegionLatencyMs = isCrossRegion ? getCrossRegionLatency(fromRegion, toRegion) : 0;
+  }
   return {
     id: generateId('edg'),
     fromId,
     toId,
     throughputRps: 0,
     load: 0,
-    latencyMs: 0,
+    latencyMs: isCrossRegion ? crossRegionLatencyMs : 1.5,
+    isCrossRegion,
+    crossRegionLatencyMs,
+    severed: false,
   };
 }
 
@@ -94,9 +119,9 @@ export function createInitialSimulation(difficulty: GameDifficulty = 'normal'): 
     [srvB.id]: srvB,
   };
 
-  const edge1 = createEdge(ingress.id, alb.id);
-  const edge2 = createEdge(alb.id, srvA.id);
-  const edge3 = createEdge(alb.id, srvB.id);
+  const edge1 = createEdge(ingress.id, alb.id, nodes);
+  const edge2 = createEdge(alb.id, srvA.id, nodes);
+  const edge3 = createEdge(alb.id, srvB.id, nodes);
 
   const edges: Record<string, ClusterEdge> = {
     [edge1.id]: edge1,
@@ -132,6 +157,13 @@ export function createInitialSimulation(difficulty: GameDifficulty = 'normal'): 
     droppedRps: 0,
     networkLatencyMs: 6.8,
     clusterHops: 2,
+    geoDnsMode: 'failover',
+    crossRegionRps: 0,
+    activeFailover: false,
+    failoverSourceRegion: null,
+    failoverTargetRegion: null,
+    regionalRps: { 'us-east-1': 0, 'eu-west-1': 0, 'ap-southeast-1': 0 },
+    regionalHealth: { 'us-east-1': 'nominal', 'eu-west-1': 'nominal', 'ap-southeast-1': 'nominal' },
     camera: { x: 40, y: 0, zoom: 1 },
     gameOver: false,
     gameOverReason: null,
@@ -320,7 +352,19 @@ export function computeClusterTopologyLatency(
   const dropRatio = inboundRps > 0 ? clampVal(droppedRps / inboundRps, 0, 1) : 0;
   const dropPenaltyMs = dropRatio * 45;
 
-  const totalLatencyMs = Math.round((baseTransitMs + hopOverheadMs + activeScaleMs + avgNodeProcessingMs + dropPenaltyMs) * 10) / 10;
+  // Cross-region physical optical transit delay (e.g. +72ms transatlantic, +118ms Eurasia)
+  let crossRegionTransitPenalty = 0;
+  for (const edge of edgeList) {
+    const fn = nodes[edge.fromId];
+    const tn = nodes[edge.toId];
+    if (fn && tn && fn.region && tn.region && fn.region !== tn.region) {
+      let delay = edge.crossRegionLatencyMs || getCrossRegionLatency(fn.region, tn.region);
+      if (edge.severed) delay += 350; // Undersea fiber cut satellite latency
+      if (delay > crossRegionTransitPenalty) crossRegionTransitPenalty = delay;
+    }
+  }
+
+  const totalLatencyMs = Math.round((baseTransitMs + hopOverheadMs + activeScaleMs + avgNodeProcessingMs + dropPenaltyMs + crossRegionTransitPenalty) * 10) / 10;
 
   return {
     latencyMs: totalLatencyMs,
@@ -460,6 +504,25 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
           }
         }
       }
+    } else if (inc.kind === 'regional_blackout' && inc.targetRegion) {
+      // Complete regional substation failure: knocks out all compute & storage nodes in targetRegion
+      for (const n of Object.values(newNodes)) {
+        if (n.region === inc.targetRegion && n.kind !== 'entry') {
+          n.status = 'offline';
+          n.repairSeconds = Math.max(n.repairSeconds, 1.0);
+          n.currentRps = 0;
+        }
+      }
+    } else if (inc.kind === 'fiber_cut') {
+      // Undersea optical fiber cut: mark cross-region edges severed
+      for (const edge of Object.values(newEdges)) {
+        const fn = newNodes[edge.fromId];
+        const tn = newNodes[edge.toId];
+        if (fn && tn && fn.region && tn.region && fn.region !== tn.region) {
+          edge.severed = true;
+          edge.crossRegionLatencyMs = (getCrossRegionLatency(fn.region, tn.region) || 72) + 350;
+        }
+      }
     } else if (inc.kind === 'memory_leak' && inc.nodeId) {
       const leakNode = newNodes[inc.nodeId];
       if (leakNode && leakNode.ramGb > 0) {
@@ -473,6 +536,19 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
           leakNode.status = 'offline';
           leakNode.ramUsedGb = leakNode.ramGb * 0.2;
         }
+      }
+    }
+  }
+
+  // Update cross-region statuses on edges
+  for (const edge of Object.values(newEdges)) {
+    const fn = newNodes[edge.fromId];
+    const tn = newNodes[edge.toId];
+    if (fn && tn) {
+      const isCross = (fn.region || 'eu-west-1') !== (tn.region || 'eu-west-1');
+      edge.isCrossRegion = isCross;
+      if (!edge.severed) {
+        edge.crossRegionLatencyMs = isCross ? getCrossRegionLatency(fn.region, tn.region) : 0;
       }
     }
   }
@@ -501,6 +577,9 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
   let totalServedRps = 0;
   let totalDroppedRps = 0;
   let newMeltdownEvents = 0;
+  let activeFailover = false;
+  let failoverSourceRegion: CloudRegionId | null = null;
+  let failoverTargetRegion: CloudRegionId | null = null;
   const hasStorageThreshold = Object.values(updatedIncidents).some((inc) => inc.kind === 'storage_threshold');
 
   // Process nodes in topological order
@@ -518,8 +597,20 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
       node.ramUsedGb = 0;
       node.latencyMs = 0.5;
 
-      // Distribute to downstream nodes
-      distributeDownstream(node, smoothedInbound, inboundMap, adjacency, newNodes);
+      // Distribute to downstream nodes via GeoDNS
+      const geoResult = distributeDownstream(
+        node,
+        smoothedInbound,
+        inboundMap,
+        adjacency,
+        newNodes,
+        node.geoDnsMode || sim.geoDnsMode || 'failover'
+      );
+      if (geoResult.activeFailover) {
+        activeFailover = true;
+        failoverSourceRegion = geoResult.failoverSource;
+        failoverTargetRegion = geoResult.failoverTarget;
+      }
       continue;
     }
 
@@ -801,6 +892,45 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
     totalDroppedRps
   );
 
+  // Regional metrics and health
+  const regionalRps: Record<CloudRegionId, number> = {
+    'us-east-1': 0,
+    'eu-west-1': 0,
+    'ap-southeast-1': 0,
+  };
+  let crossRegionRps = 0;
+
+  for (const node of Object.values(newNodes)) {
+    if (node.region && node.currentRps > 0) {
+      regionalRps[node.region] = (regionalRps[node.region] || 0) + node.currentRps;
+    }
+  }
+
+  for (const edge of Object.values(newEdges)) {
+    if (edge.isCrossRegion && edge.throughputRps > 0) {
+      crossRegionRps += edge.throughputRps;
+    }
+  }
+
+  const blackoutRegion = Object.values(updatedIncidents).find(
+    (inc) => inc.kind === 'regional_blackout'
+  )?.targetRegion;
+
+  const regionalHealth: Record<CloudRegionId, 'nominal' | 'degraded' | 'blackout'> = {
+    'us-east-1': blackoutRegion === 'us-east-1' ? 'blackout' : 'nominal',
+    'eu-west-1': blackoutRegion === 'eu-west-1' ? 'blackout' : 'nominal',
+    'ap-southeast-1': blackoutRegion === 'ap-southeast-1' ? 'blackout' : 'nominal',
+  };
+
+  for (const reg of ['us-east-1', 'eu-west-1', 'ap-southeast-1'] as CloudRegionId[]) {
+    if (regionalHealth[reg] === 'blackout') continue;
+    const regNodes = Object.values(newNodes).filter((n) => n.region === reg && n.kind !== 'entry');
+    if (regNodes.length > 0) {
+      const hasIssues = regNodes.some((n) => n.status === 'offline' || n.status === 'meltdown' || n.status === 'critical');
+      if (hasIssues) regionalHealth[reg] = 'degraded';
+    }
+  }
+
   return {
     ...sim,
     elapsedMs: newElapsedMs,
@@ -813,6 +943,13 @@ export function stepSimulation(sim: SimulationState, dt: number): SimulationStat
     droppedRps: totalDroppedRps,
     networkLatencyMs: topologyMetrics.latencyMs,
     clusterHops: topologyMetrics.maxHops,
+    geoDnsMode: sim.geoDnsMode ?? 'failover',
+    crossRegionRps,
+    activeFailover,
+    failoverSourceRegion,
+    failoverTargetRegion,
+    regionalRps,
+    regionalHealth,
     gameOver,
     gameOverReason,
     meltdownCount: sim.meltdownCount + newMeltdownEvents,
@@ -839,16 +976,84 @@ function distributeDownstream(
   amount: number,
   inboundMap: Map<string, number>,
   adjacency: Map<string, string[]>,
-  nodes: Record<string, ClusterNode>
-) {
+  nodes: Record<string, ClusterNode>,
+  geoDnsMode: GeoDnsMode = 'failover'
+): { activeFailover: boolean; failoverSource: CloudRegionId | null; failoverTarget: CloudRegionId | null } {
   const downstream = adjacency.get(source.id) || [];
-  if (amount <= 0 || downstream.length === 0) return;
+  if (amount <= 0 || downstream.length === 0) {
+    return { activeFailover: false, failoverSource: null, failoverTarget: null };
+  }
 
   const validDownstream = downstream.filter((id) => !!nodes[id]);
-  if (validDownstream.length === 0) return;
+  if (validDownstream.length === 0) {
+    return { activeFailover: false, failoverSource: null, failoverTarget: null };
+  }
 
+  let activeFailover = false;
+  let failoverSource: CloudRegionId | null = null;
+  let failoverTarget: CloudRegionId | null = null;
+
+  if (source.kind === 'entry') {
+    // Geo-DNS Anycast Routing
+    const regionalTargets: Record<CloudRegionId, string[]> = {
+      'us-east-1': [],
+      'eu-west-1': [],
+      'ap-southeast-1': [],
+    };
+    for (const tid of validDownstream) {
+      const reg = nodes[tid].region;
+      if (reg) regionalTargets[reg].push(tid);
+    }
+
+    const healthyTargets = validDownstream.filter((id) => {
+      const n = nodes[id];
+      return n.status !== 'offline' && n.status !== 'meltdown';
+    });
+
+    const unhealthyTargets = validDownstream.filter((id) => {
+      const n = nodes[id];
+      return n.status === 'offline' || n.status === 'meltdown';
+    });
+
+    if (geoDnsMode === 'failover' && healthyTargets.length > 0 && unhealthyTargets.length > 0) {
+      activeFailover = true;
+      failoverSource = nodes[unhealthyTargets[0]].region;
+      failoverTarget = nodes[healthyTargets[0]].region;
+      const perTarget = amount / healthyTargets.length;
+      for (const targetId of healthyTargets) {
+        inboundMap.set(targetId, (inboundMap.get(targetId) || 0) + perTarget);
+      }
+      return { activeFailover, failoverSource, failoverTarget };
+    }
+
+    if (geoDnsMode === 'proximity') {
+      const weights: Record<CloudRegionId, number> = {
+        'us-east-1': 0.4,
+        'eu-west-1': 0.35,
+        'ap-southeast-1': 0.25,
+      };
+      const activeRegions = (Object.keys(regionalTargets) as CloudRegionId[]).filter(
+        (r) => regionalTargets[r].length > 0
+      );
+      if (activeRegions.length > 0) {
+        const totalWeight = activeRegions.reduce((sum, r) => sum + weights[r], 0);
+        for (const reg of activeRegions) {
+          const regShare = (weights[reg] / totalWeight) * amount;
+          const regTargets = regionalTargets[reg];
+          const perNode = regShare / regTargets.length;
+          for (const tid of regTargets) {
+            inboundMap.set(tid, (inboundMap.get(tid) || 0) + perNode);
+          }
+        }
+        return { activeFailover, failoverSource, failoverTarget };
+      }
+    }
+  }
+
+  // Standard round-robin distribution
   const perTarget = amount / validDownstream.length;
   for (const targetId of validDownstream) {
     inboundMap.set(targetId, (inboundMap.get(targetId) || 0) + perTarget);
   }
+  return { activeFailover, failoverSource, failoverTarget };
 }

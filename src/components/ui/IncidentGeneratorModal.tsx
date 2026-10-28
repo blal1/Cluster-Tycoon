@@ -25,6 +25,8 @@ import {
   Cpu,
   Layers,
   CheckCircle2,
+  Globe,
+  PowerOff,
 } from 'lucide-react';
 
 interface IncidentGeneratorModalProps {
@@ -608,6 +610,106 @@ export const IncidentGeneratorModal: React.FC<IncidentGeneratorModalProps> = ({
                     <span>Simulate Node Crash</span>
                   </button>
                 </div>
+
+                {/* 5. DISASTER RECOVERY DRILL: REGIONAL GRID BLACKOUT */}
+                <div
+                  style={{
+                    backgroundColor: '#111622',
+                    border: '1px solid rgba(255, 59, 92, 0.55)',
+                    borderRadius: '4px',
+                    padding: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '14px', color: 'var(--ct-red)' }}>
+                        <PowerOff size={16} />
+                        <span>Regional Grid Blackout</span>
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          backgroundColor: 'rgba(255, 59, 92, 0.2)',
+                          color: 'var(--ct-red)',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        DR DRILL
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--ct-text-muted)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                      Substation power transformer explosion knocks an entire cloud region offline. Ingress Geo-DNS failover must route traffic to surviving zones.
+                    </p>
+                    <div style={{ fontSize: '11px', color: 'var(--ct-text-faint)', marginBottom: '12px' }}>
+                      Remediation: Emergency Diesel Generators & Geo-DNS Failover ($320)
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="ct-btn ct-btn--red ct-btn--sm"
+                    onClick={() => handleInjectIncident('regional_blackout')}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    <Play size={13} />
+                    <span>Simulate Regional Blackout</span>
+                  </button>
+                </div>
+
+                {/* 6. DISASTER RECOVERY DRILL: SUBSEA FIBER CUT */}
+                <div
+                  style={{
+                    backgroundColor: '#111622',
+                    border: '1px solid rgba(255, 170, 0, 0.5)',
+                    borderRadius: '4px',
+                    padding: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '14px', color: 'var(--ct-amber)' }}>
+                        <Globe size={16} />
+                        <span>Subsea Fiber Severance</span>
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          backgroundColor: 'rgba(255, 170, 0, 0.2)',
+                          color: 'var(--ct-amber)',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        WAN FAULT
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--ct-text-muted)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                      Maritime anchor drag cuts transatlantic subsea fiber cable. Cross-region WAN links fail over to emergency satellite with +350ms latency.
+                    </p>
+                    <div style={{ fontSize: '11px', color: 'var(--ct-text-faint)', marginBottom: '12px' }}>
+                      Remediation: BGP Anycast WAN Reroute via Terrestrial Fiber ($240)
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="ct-btn ct-btn--amber ct-btn--sm"
+                    onClick={() => handleInjectIncident('fiber_cut')}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    <Play size={13} />
+                    <span>Simulate Subsea Fiber Cut</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -730,6 +832,60 @@ export const IncidentGeneratorModal: React.FC<IncidentGeneratorModalProps> = ({
                             </span>
                             <span style={{ color: 'var(--ct-text-muted)' }}>
                               Inbound Demand: {formatRps(sim.inboundRps)}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Regional Grid Blackout specific telemetry */}
+                        {inc.kind === 'regional_blackout' && (
+                          <div
+                            style={{
+                              padding: '8px 12px',
+                              backgroundColor: 'rgba(255, 59, 92, 0.12)',
+                              border: '1px solid rgba(255, 59, 92, 0.3)',
+                              borderRadius: '3px',
+                              fontSize: '12px',
+                              marginBottom: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span>
+                              <strong>Target Region:</strong>{' '}
+                              <span style={{ color: 'var(--ct-red)', fontWeight: 700, fontFamily: 'monospace' }}>
+                                {inc.targetRegion ?? 'us-east-1'} [GRID COLLAPSED]
+                              </span>
+                            </span>
+                            <span style={{ color: 'var(--ct-cyan)' }}>
+                              Geo-DNS Status: {sim.activeFailover ? 'FAILOVER ACTIVE' : 'FAILOVER READY'}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Fiber Cut specific telemetry */}
+                        {inc.kind === 'fiber_cut' && (
+                          <div
+                            style={{
+                              padding: '8px 12px',
+                              backgroundColor: 'rgba(255, 170, 0, 0.12)',
+                              border: '1px solid rgba(255, 170, 0, 0.3)',
+                              borderRadius: '3px',
+                              fontSize: '12px',
+                              marginBottom: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span>
+                              <strong>Severed Trunks:</strong>{' '}
+                              <span style={{ color: 'var(--ct-amber)', fontWeight: 700 }}>
+                                {inc.severedEdgeIds?.length ?? 1} Cross-Region Optical Links
+                              </span>
+                            </span>
+                            <span style={{ color: 'var(--ct-red)' }}>
+                              Penalty: +350ms Satellite Fallback
                             </span>
                           </div>
                         )}

@@ -16,7 +16,7 @@ import {
   formatLatencyMs,
   STATUS_NON_COLOR_LABELS,
 } from '../../constants/gameConfig';
-import { NodeKind, ClusterNode } from '../../types/game';
+import { NodeKind, ClusterNode, CloudRegionId } from '../../types/game';
 import {
   X,
   Server,
@@ -34,6 +34,7 @@ import {
   Flame,
   PowerOff,
   Activity,
+  Globe,
 } from 'lucide-react';
 
 interface ClusterMatrixModalProps {
@@ -46,6 +47,7 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
   const settings = useAppStore((s) => s.settings);
 
   const [deployKind, setDeployKind] = useState<NodeKind>('server');
+  const [selectedRegion, setSelectedRegion] = useState<CloudRegionId | 'all'>('all');
   const [connectTargetMap, setConnectTargetMap] = useState<Record<string, string>>({});
   const [disconnectTargetMap, setDisconnectTargetMap] = useState<Record<string, string>>({});
 
@@ -202,6 +204,18 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
             </strong>
           </div>
           <div className="ct-matrix-stat">
+            <span className="ct-matrix-stat__label">Cross-Region WAN</span>
+            <strong className="ct-matrix-stat__value text-amber-300">
+              {formatRps(sim.crossRegionRps ?? 0)}
+            </strong>
+          </div>
+          <div className="ct-matrix-stat">
+            <span className="ct-matrix-stat__label">Geo-DNS Ingress</span>
+            <strong className="ct-matrix-stat__value text-cyan-400 font-mono text-xs uppercase">
+              {sim.geoDnsMode ?? 'failover'}
+            </strong>
+          </div>
+          <div className="ct-matrix-stat">
             <span className="ct-matrix-stat__label">Active Meltdowns</span>
             <strong className={`ct-matrix-stat__value ${sim.meltdownCount > 0 ? 'text-red-400' : 'text-green-400'}`}>
               {nodes.filter((n) => n.status === 'meltdown').length}
@@ -241,6 +255,32 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
           </button>
         </div>
 
+        {/* Region Filter Bar */}
+        <div className="flex items-center gap-2 px-6 py-2.5 bg-[#0b0e17] border-b border-[var(--ct-border)] text-xs">
+          <span className="font-semibold text-gray-400">Filter Region:</span>
+          {(['all', 'us-east-1', 'eu-west-1', 'ap-southeast-1'] as const).map((r) => {
+            const count = r === 'all' ? nodes.length : nodes.filter((n) => n.region === r).length;
+            const active = selectedRegion === r;
+            return (
+              <button
+                key={r}
+                type="button"
+                className={`px-2.5 py-1 rounded font-mono text-xs transition-colors border ${
+                  active
+                    ? 'bg-[var(--ct-cyan)]/15 border-[var(--ct-cyan)] text-white font-bold'
+                    : 'bg-[var(--ct-surface-2)] border-[var(--ct-border)] text-[var(--ct-text-muted)] hover:border-gray-500'
+                }`}
+                onClick={() => {
+                  audio.playClick();
+                  setSelectedRegion(r);
+                }}
+              >
+                {r === 'all' ? 'All Regions' : r} ({count})
+              </button>
+            );
+          })}
+        </div>
+
         {/* Semantic Node Table */}
         <div className="ct-matrix-modal__table-container">
           {nodes.length === 0 ? (
@@ -252,6 +292,7 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
               <thead>
                 <tr>
                   <th scope="col">Node Identifier</th>
+                  <th scope="col">Region / AZ</th>
                   <th scope="col">Status & Health</th>
                   <th scope="col">Hardware Tier</th>
                   <th scope="col">CPU Utilization</th>
@@ -262,7 +303,7 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
                 </tr>
               </thead>
               <tbody>
-                {nodes.map((node) => {
+                {(selectedRegion === 'all' ? nodes : nodes.filter((n) => n.region === selectedRegion)).map((node) => {
                   const tmpl = NODE_TEMPLATES[node.kind];
                   const statusInfo = STATUS_NON_COLOR_LABELS[node.status] || {
                     label: node.status.toUpperCase(),
@@ -300,6 +341,14 @@ export const ClusterMatrixModal: React.FC<ClusterMatrixModalProps> = ({ open, on
                         <div className="flex flex-col">
                           <strong className="font-mono text-cyan-300 text-sm">{node.name}</strong>
                           <span className="text-xs text-gray-400">{tmpl.label} ({tmpl.short})</span>
+                        </div>
+                      </td>
+
+                      {/* Region / AZ */}
+                      <td>
+                        <div className="flex flex-col font-mono text-xs">
+                          <span className="font-semibold text-[var(--ct-text-strong)]">{node.region ?? 'us-east-1'}</span>
+                          <span className="text-[10px] text-[var(--ct-cyan)]">{node.availabilityZone ?? 'us-east-1a'}</span>
                         </div>
                       </td>
 

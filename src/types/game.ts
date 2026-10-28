@@ -6,8 +6,14 @@ export type NodeKind = 'entry' | 'loadbalancer' | 'server' | 'database' | 'stora
 
 export type NodeStatus = 'nominal' | 'warning' | 'critical' | 'offline' | 'meltdown';
 
+export type CloudRegionId = 'us-east-1' | 'eu-west-1' | 'ap-southeast-1';
+
+export type GeoDnsMode = 'failover' | 'proximity' | 'roundrobin';
+
 export type IncidentKind =
   | 'power_fluctuation'
+  | 'regional_blackout'
+  | 'fiber_cut'
   | 'ddos_spike'
   | 'ddos'
   | 'hardware_failure'
@@ -69,6 +75,9 @@ export interface ClusterNode {
   shielded: boolean;
   autoReboot: boolean;
   powerFluctuating?: boolean;
+  region: CloudRegionId;
+  availabilityZone: string;
+  geoDnsMode?: GeoDnsMode;
   createdAtMs: number;
 }
 
@@ -79,6 +88,9 @@ export interface ClusterEdge {
   throughputRps: number;
   load: number;
   latencyMs: number;
+  isCrossRegion?: boolean;
+  crossRegionLatencyMs?: number;
+  severed?: boolean;
 }
 
 export interface IncidentHistoryEntry {
@@ -96,6 +108,8 @@ export interface Incident {
   kind: IncidentKind;
   nodeId: string | null;
   affectedNodeIds?: string[];
+  targetRegion?: CloudRegionId;
+  severedEdgeIds?: string[];
   title: string;
   detail: string;
   startedAtMs: number;
@@ -168,6 +182,13 @@ export interface SimulationState {
   droppedRps: number;
   networkLatencyMs: number;
   clusterHops: number;
+  geoDnsMode: GeoDnsMode;
+  crossRegionRps: number;
+  activeFailover: boolean;
+  failoverSourceRegion: CloudRegionId | null;
+  failoverTargetRegion: CloudRegionId | null;
+  regionalRps: Record<CloudRegionId, number>;
+  regionalHealth: Record<CloudRegionId, 'nominal' | 'degraded' | 'blackout'>;
   camera: CameraState;
   gameOver: boolean;
   gameOverReason: string | null;
@@ -224,6 +245,7 @@ export type GameAction =
   | { type: 'addServerBehind'; nodeId: string }
   | { type: 'toggleShield'; nodeId: string }
   | { type: 'toggleAutoReboot'; nodeId: string }
+  | { type: 'setGeoDnsMode'; mode: GeoDnsMode }
   | { type: 'setSpeed'; speed: number }
   | { type: 'togglePause' }
   | { type: 'setCamera'; camera: Partial<CameraState> }

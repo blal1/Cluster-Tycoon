@@ -8,6 +8,7 @@ import {
   formatLatencyMs,
   NODE_TEMPLATES,
   STATUS_NON_COLOR_LABELS,
+  CLOUD_REGIONS,
 } from '../../constants/gameConfig';
 import { audio } from '../../audio/proceduralAudio';
 import {
@@ -17,6 +18,7 @@ import {
   Server,
   XCircle,
   Network,
+  Globe,
 } from 'lucide-react';
 
 export const SideRail: React.FC = () => {
@@ -116,6 +118,79 @@ export const SideRail: React.FC = () => {
             <span>{hops} connection hop{hops === 1 ? '' : 's'}</span>
             <span>{activeNodesCount} active node{activeNodesCount === 1 ? '' : 's'}</span>
           </div>
+        </div>
+      </section>
+
+      {/* Multi-Region & HA Telemetry */}
+      <section className="ct-rail__section">
+        <h2 className="ct-rail__title">
+          <Globe size={13} className="inline mr-1 text-cyan-400" />
+          Multi-Region & HA
+        </h2>
+
+        {/* Geo-DNS & Failover Status */}
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">Geo-DNS Routing</span>
+            <span className="ct-metric__value font-mono text-[11px] uppercase text-[var(--ct-cyan)]">
+              {sim.geoDnsMode ?? 'failover'}
+            </span>
+          </div>
+          {sim.activeFailover && (
+            <div className="text-[11px] font-bold text-red-400 bg-red-950/60 border border-red-500/50 rounded px-2 py-1 mt-1 animate-pulse">
+              ⚡ FAILOVER: {sim.failoverSourceRegion ?? 'us-east-1'} → {sim.failoverTargetRegion ?? 'eu-west-1'}
+            </div>
+          )}
+        </div>
+
+        {/* Cross-Region WAN Traffic */}
+        <div className="ct-metric">
+          <div className="ct-metric__head">
+            <span className="ct-metric__name">Cross-Region WAN</span>
+            <span className="ct-metric__value text-amber-300">
+              {formatRps(sim.crossRegionRps ?? 0)}
+            </span>
+          </div>
+        </div>
+
+        {/* Regional Breakdown */}
+        <div className="mt-2 space-y-1.5">
+          {Object.values(CLOUD_REGIONS).map((reg) => {
+            const rps = sim.regionalRps?.[reg.id] ?? 0;
+            const health = sim.regionalHealth?.[reg.id] ?? 'nominal';
+            const healthColor =
+              health === 'nominal'
+                ? 'var(--ct-green)'
+                : health === 'degraded'
+                ? 'var(--ct-amber)'
+                : 'var(--ct-red)';
+
+            return (
+              <div
+                key={reg.id}
+                className="flex items-center justify-between text-xs p-1.5 rounded bg-[var(--ct-surface-1)] border border-[var(--ct-border)]"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="w-2 h-2 rounded-full inline-block"
+                    style={{ backgroundColor: healthColor }}
+                  />
+                  <span className="font-mono text-[11px] font-semibold text-[var(--ct-text-strong)]">
+                    {reg.id}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-[var(--ct-text-muted)]">{formatRps(rps)}</span>
+                  <span
+                    className="text-[10px] uppercase font-mono font-bold"
+                    style={{ color: healthColor }}
+                  >
+                    {health}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
